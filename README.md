@@ -675,8 +675,8 @@ flowchart TB
         NGINX[NGINX — Reverse Proxy + HTTPS]
         APP[Node.js App — Port 3000]
         PG_PRIMARY[(PostgreSQL Primary)]
-        FILES[/var/dms/files]
-        BACKUPS[/var/dms/backups]
+        FILES["/var/dms/files"]
+        BACKUPS["/var/dms/backups"]
 
         NGINX --> APP
         APP --> PG_PRIMARY
@@ -686,7 +686,7 @@ flowchart TB
 
     subgraph SecondaryServer["Secondary Server (Replication Target)"]
         PG_REPLICA[(PostgreSQL Replica)]
-        FILES2[/var/dms/files — Replicated]
+        FILES2["/var/dms/files — Replicated"]
     end
 
     subgraph ClientMachines["Client Machines (LAN)"]
@@ -696,8 +696,8 @@ flowchart TB
         BROWSER4[Admin Browser]
     end
 
-    BROWSER1 & BROWSER2 & BROWSER3 & BROWSER4 -- HTTPS LAN --> NGINX
-    APP -- rsync + pg_dump --> SecondaryServer
+    BROWSER1 & BROWSER2 & BROWSER3 & BROWSER4 -- "HTTPS LAN" --> NGINX
+    APP -- "rsync + pg_dump" --> SecondaryServer
 ```
 
 ---
