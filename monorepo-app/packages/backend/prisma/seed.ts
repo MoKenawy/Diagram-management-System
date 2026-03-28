@@ -1,20 +1,7 @@
-import 'dotenv/config'; // <--- Add this at the very top
-import { PrismaClient, Role } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-import bcrypt from 'bcrypt';
-
-// 1. Get the connection string from your environment
-const connectionString = process.env.DATABASE_URL;
-
-// 2. Setup standard standard Postgres connection pool
-const pool = new Pool({ connectionString });
-
-// 3. Wrap it with the Prisma Adapter
-const adapter = new PrismaPg(pool);
-
-// 4. Pass the adapter to the Prisma Client
-const prisma = new PrismaClient({ adapter });
+import 'dotenv/config';
+import { Role } from '@prisma/client';
+import { prisma } from '../src/lib/prisma'; // Use shared client
+import { hashPassword } from '../src/utils/auth';
 
 async function main() {  
   console.log('Starting database seeding...');
@@ -29,13 +16,9 @@ async function main() {
     await prisma.systemConfig.upsert({
       where: { key: config.key },
       update: {},
-      create: {
-        key: config.key,
-        value: config.value,
-      },
+      create: config,
     });
   }
-  console.log('✅ System Configs seeded.');
 
   // 2. Seed Departments
   const departmentsData = [
@@ -48,17 +31,16 @@ async function main() {
 
   const createdDepartments = [];
   for (const dept of departmentsData) {
-    const department = await prisma.department.upsert({
+    const d = await prisma.department.upsert({
       where: { code: dept.code },
       update: {},
       create: dept,
     });
-    createdDepartments.push(department);
+    createdDepartments.push(d);
   }
-  console.log('✅ Departments seeded.');
 
-  // 3. Hash default password
-  const defaultPasswordHash = await bcrypt.hash('Admin@123', 10);
+  // 3. Hash default password using util (Cost factor 12)
+  const defaultPasswordHash = await hashPassword('Admin@123');
 
   // 4. Seed Admin User
   await prisma.user.upsert({
@@ -72,28 +54,14 @@ async function main() {
       role: Role.ADMIN,
     },
   });
-  console.log('✅ Admin user seeded.');
 
-  // 5. Seed Users (DC, Manager, Engineer) per department
+  // 5. Seed Department Users
   for (const dept of createdDepartments) {
     const deptPrefix = dept.code.toLowerCase();
-    
     const usersToCreate = [
-      {
-        username: `dc_${deptPrefix}`,
-        fullName: `${dept.nameEn} Document Controller`,
-        role: Role.DC,
-      },
-      {
-        username: `mgr_${deptPrefix}`,
-        fullName: `${dept.nameEn} Manager`,
-        role: Role.MANAGER,
-      },
-      {
-        username: `eng_${deptPrefix}`,
-        fullName: `${dept.nameEn} Engineer`,
-        role: Role.ENGINEER,
-      },
+      { username: `dc_${deptPrefix}`, fullName: `${dept.nameEn} DC`, role: Role.DC },
+      { username: `mgr_${deptPrefix}`, fullName: `${dept.nameEn} Mgr`, role: Role.MANAGER },
+      { username: `eng_${deptPrefix}`, fullName: `${dept.nameEn} Eng`, role: Role.ENGINEER },
     ];
 
     for (const u of usersToCreate) {
@@ -101,16 +69,14 @@ async function main() {
         where: { username: u.username },
         update: {},
         create: {
-          username: u.username,
-          fullName: u.fullName,
+          ...u,
           passwordHash: defaultPasswordHash,
-          role: u.role,
           departmentId: dept.id,
         },
       });
     }
   }
-  console.log('✅ Department specific users (DC, Manager, Engineer) seeded.');
+
   console.log('Seeding completed successfully!');
 }
 
