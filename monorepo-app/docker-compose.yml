@@ -1,37 +1,49 @@
 services:
   postgres:
-    image: postgres:17
+    image: postgres:17-alpine
+    container_name: dms-db
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: appdb
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d appdb"]
+      interval: 5s
+      retries: 5
 
   redis:
-    image: redis:7.4
-    ports:
-      - "6379:6379"
+    image: redis:7.4-alpine
+    container_name: dms-redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      retries: 5
 
   backend:
-    build:
+    build: 
       context: .
       dockerfile: packages/backend/Dockerfile
-    ports:
-      - "3000:3000"
+    container_name: dms-backend
     env_file: .env
     depends_on:
-      - postgres
-      - redis
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes:
+      - ./storage/uploads:/app/packages/backend/uploads
+      - ./storage/backups:/app/packages/backend/backups
 
   frontend:
     build:
       context: .
       dockerfile: packages/frontend/Dockerfile
+    container_name: dms-frontend
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - backend
 

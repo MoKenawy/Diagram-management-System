@@ -1,21 +1,15 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
-COPY package.json ./
-COPY packages/backend/package.json ./packages/backend/
-RUN npm install --workspace=packages/backend
+COPY package*.json ./
+COPY packages/backend/package*.json ./packages/backend/
+RUN npm install --workspace=@app/backend
 COPY packages/backend ./packages/backend
-WORKDIR /app/packages/backend
-RUN npx prisma generate
-RUN npm run build
+RUN cd packages/backend && npx prisma generate && npm run build
 
 FROM node:24-alpine
 WORKDIR /app
-COPY package.json ./
-COPY packages/backend/package.json ./packages/backend/
-RUN npm install --workspace=packages/backend --omit=dev
-COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
-COPY --from=builder /app/packages/backend/prisma ./packages/backend/prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-WORKDIR /app/packages/backend
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/backend/dist ./dist
+COPY --from=builder /app/packages/backend/prisma ./prisma
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]
