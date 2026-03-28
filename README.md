@@ -753,9 +753,14 @@ Create a Node.js monorepo with the following structure using npm workspaces:
 └── README.md
 
 Requirements:
-- backend: Node.js 20, Express 4, TypeScript 5, Prisma 5, BullMQ, Redis client, Sharp, Axios, jsonwebtoken, bcrypt, multer, cors, helmet
-- frontend: React 18, TypeScript 5, Vite 5, Tailwind CSS 3, shadcn/ui, React Query v5, Zustand, Axios, React Router v6, PDF.js (pdfjs-dist)
-- docker-compose.yml should define services: postgres (v15), redis (v7), backend, frontend (served via NGINX in prod)
+Backend:
+- Node.js 24 (LTS), Express 5, TypeScript 6.0, Prisma 7, BullMQ, ioredis, Sharp, Axios, jsonwebtoken, bcrypt, multer, cors, helmet.
+
+Frontend:
+- React 19, TypeScript 6.0, Vite 6, Tailwind CSS 4, shadcn/ui, TanStack Query v5, Zustand, Axios, React Router v7, PDF.js (pdfjs-dist).
+
+Infrastructure:
+- docker-compose.yml defining services: PostgreSQL 17, Redis 7.4, backend, and frontend (served via NGINX).
 - Add .env.example with: DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, REDIS_URL, FILE_STORAGE_PATH, BACKUP_PATH, PORT, FRONTEND_URL
 - Add a root-level Makefile with targets: dev, build, migrate, seed, docker-up, docker-down
 - Configure ESLint + Prettier for both packages

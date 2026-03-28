@@ -1,0 +1,177 @@
+// packages/backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ================= Enums =================
+
+enum Role {
+  ENGINEER
+  DC
+  MANAGER
+  ADMIN
+}
+
+enum FileFormat {
+  PDF
+  JPEG
+  PNG
+  SVG
+  DWG
+}
+
+enum GrantType {
+  INDIVIDUAL
+  DEPARTMENT
+}
+
+enum BackupStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILED
+  NEVER
+}
+
+// ================= Models =================
+
+model User {
+  id                  String    @id @default(uuid())
+  username            String    @unique
+  fullName            String
+  email               String?
+  passwordHash        String
+  role                Role
+  departmentId        String?
+  isActive            Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLogin           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  department         Department?      @relation(fields: [departmentId], references: [id])
+  uploadedDiagrams   Diagram[]        @relation("UploadedDiagrams")
+  grantedAccesses    DiagramAccess[]  @relation("GrantedAccess")
+  receivedAccesses   DiagramAccess[]  @relation("ReceivedAccess")
+  auditLogs          AuditLog[]
+  triggeredBackups   BackupRecord[]
+  updatedConfigs     SystemConfig[]
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  nameAr    String
+  nameEn    String
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  users     User[]
+}
+
+model Diagram {
+  id               String     @id @default(uuid())
+  title            String
+  description      String?
+  revision         String     @default("1")
+  filePath         String
+  originalFilename String
+  fileFormat       FileFormat
+  fileSizeBytes    BigInt
+  thumbnailPath    String?
+  uploadedById     String
+  parentDiagramId  String?
+  isActive         Boolean    @default(true)
+  uploadedAt       DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relations
+  uploadedBy       User            @relation("UploadedDiagrams", fields: [uploadedById], references: [id])
+  parentDiagram    Diagram?        @relation("DiagramHistory", fields: [parentDiagramId], references: [id])
+  childDiagrams    Diagram[]       @relation("DiagramHistory")
+  tags             DiagramTag[]
+  accesses         DiagramAccess[]
+}
+
+model DiagramTag {
+  id        String @id @default(uuid())
+  diagramId String
+  tag       String
+
+  // Relations
+  diagram   Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+}
+
+model DiagramAccess {
+  id          String    @id @default(uuid())
+  diagramId   String
+  userId      String?   // Optional in case grantType is DEPARTMENT
+  grantType   GrantType
+  grantedAt   DateTime  @default(now())
+  grantedById String
+
+  // Relations
+  diagram   Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  user      User?   @relation("ReceivedAccess", fields: [userId], references: [id])
+  grantedBy User    @relation("GrantedAccess", fields: [grantedById], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  targetType String?
+  targetId   String?
+  ipAddress  String?
+  metadata   Json?
+  occurredAt DateTime @default(now())
+
+  // Relations
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model BackupRecord {
+  id            String       @id @default(uuid())
+  filePath      String
+  sizeBytes     BigInt
+  status        BackupStatus
+  startedAt     DateTime     @default(now())
+  completedAt   DateTime?
+  triggeredById String?
+
+  // Relations
+  triggeredBy   User?        @relation(fields: [triggeredById], references: [id])
+}
+
+model ReplicationTarget {
+  id             String     @id @default(uuid())
+  host           String
+  port           Int        @default(5432)
+  label          String
+  credentials    Json
+  isActive       Boolean    @default(true)
+  lastSyncAt     DateTime?
+  lastSyncStatus SyncStatus @default(NEVER)
+  createdAt      DateTime   @default(now())
+}
+
+model SystemConfig {
+  key         String   @id
+  value       String
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  // Relations
+  updatedBy   User?    @relation(fields: [updatedById], references: [id])
+}
