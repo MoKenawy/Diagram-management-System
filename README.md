@@ -452,12 +452,12 @@ flowchart TB
     end
 
     subgraph Storage["File Storage"]
-        FS[Local File System / NAS Mount\n/var/dms/files/{year}/{month}/{uuid}.ext]
-        THUMB[Thumbnail Cache\n/var/dms/files/thumbs/]
+        FS["Local File System / NAS Mount\n/var/dms/files/{year}/{month}/{uuid}.ext"]
+        THUMB["Thumbnail Cache\n/var/dms/files/thumbs/"]
     end
 
     subgraph DB["Database Server"]
-        PG[(PostgreSQL 15\nwith JSONB & ENUM indexes)]
+        PG[("PostgreSQL 15\nwith JSONB & ENUM indexes")]
     end
 
     subgraph ReplicationLayer["Secondary Servers — Optional"]
@@ -466,7 +466,7 @@ flowchart TB
     end
 
     subgraph BackupStore["Backup Storage"]
-        BK[/var/dms/backups/]
+        BK["/var/dms/backups/"]
     end
 
     UI -- HTTPS / REST --> NGINX
@@ -754,12 +754,12 @@ flowchart TD
 flowchart TB
     subgraph PrimaryServer["Primary Application Server (On-Premises)"]
         direction TB
-        NGINX2[NGINX — Reverse Proxy + HTTPS + Static]
-        APP[Node.js App — Port 3000]
-        REDIS[Redis 7 — BullMQ Queues]
-        PG_PRIMARY[(PostgreSQL 15\nPrimary)]
-        FILES[/var/dms/files]
-        BACKUPS[/var/dms/backups]
+        NGINX2["NGINX — Reverse Proxy + HTTPS + Static"]
+        APP["Node.js App — Port 3000"]
+        REDIS["Redis 7 — BullMQ Queues"]
+        PG_PRIMARY[("PostgreSQL 15\nPrimary")]
+        FILES["/var/dms/files"]
+        BACKUPS["/var/dms/backups"]
 
         NGINX2 --> APP
         APP --> PG_PRIMARY
@@ -774,8 +774,8 @@ flowchart TB
     end
 
     subgraph SecondaryServer["Secondary Server (Optional Replication Target)"]
-        PG_REPLICA[(PostgreSQL\nReplica)]
-        FILES2[/var/dms/files\nReplicated via rsync]
+        PG_REPLICA[("PostgreSQL\nReplica")]
+        FILES2["/var/dms/files\nReplicated via rsync"]
     end
 
     subgraph Clients["Client Machines — LAN Only"]
@@ -787,8 +787,8 @@ flowchart TB
 
     B1 & B2 & B3 & B4 -- HTTPS LAN --> NGINX2
     REDIS --> W1 & W2 & W3
-    W2 -- pg_dump + tar --> BACKUPS
-    W3 -- rsync + pg_dump --> SecondaryServer
+    W2 -- "pg_dump + tar" --> BACKUPS
+    W3 -- "rsync + pg_dump" --> SecondaryServer
 ```
 
 ---
