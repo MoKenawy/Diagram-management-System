@@ -1,13 +1,17 @@
-// packages/backend/prisma/schema.prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // Replace with your actual database provider if different
 }
-// ================= Enums =================
+
+// ---------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------
 
 enum Role {
   ENGINEER
@@ -24,9 +28,20 @@ enum FileFormat {
   DWG
 }
 
-enum GrantType {
-  INDIVIDUAL
+enum TargetType {
+  USER
   DEPARTMENT
+}
+
+enum AccessLevel {
+  VIEW
+  EDIT
+  ADMIN
+}
+
+enum AccessPolicy {
+  ALLOW
+  DENY
 }
 
 enum BackupStatus {
@@ -41,10 +56,23 @@ enum SyncStatus {
   NEVER
 }
 
-// ================= Models =================
+// ---------------------------------------------------------
+// MODELS
+// ---------------------------------------------------------
+
+model Department {
+  id             String     @id @default(cuid())
+  nameAr   String
+  nameEn   String
+  code     String    @unique
+
+  // Relations
+  users    User[]
+  diagrams Diagram[]
+}
 
 model User {
-  id                  String    @id @default(uuid())
+  id                  String     @id @default(cuid())
   username            String    @unique
   fullName            String
   email               String?
@@ -59,81 +87,88 @@ model User {
   updatedAt           DateTime  @updatedAt
 
   // Relations
-  department         Department?      @relation(fields: [departmentId], references: [id])
-  uploadedDiagrams   Diagram[]        @relation("UploadedDiagrams")
-  grantedAccesses    DiagramAccess[]  @relation("GrantedAccess")
-  receivedAccesses   DiagramAccess[]  @relation("ReceivedAccess")
-  auditLogs          AuditLog[]
-  triggeredBackups   BackupRecord[]
-  updatedConfigs     SystemConfig[]
-}
-
-model Department {
-  id        String   @id @default(uuid())
-  nameAr    String
-  nameEn    String
-  code      String   @unique
-  createdAt DateTime @default(now())
-
-  // Relations
-  users     User[]
+  department          Department?     @relation(fields: [departmentId], references: [id])
+  uploadedVersions    DiagramVersion[]
+  grantedAccesses     DiagramAccess[] @relation("AccessGrantedBy")
+  auditLogs           AuditLog[]
+  triggeredBackups    BackupRecord[]
+  updatedConfigs      SystemConfig[]
 }
 
 model Diagram {
-  id               String     @id @default(uuid())
+  id             String     @id @default(cuid())
   title            String
   description      String?
-  revision         String     @default("1")
+  departmentId     String
+  currentVersionId String?      // Plain String, NOT a FK relation (handled in application logic)
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  department       Department       @relation(fields: [departmentId], references: [id])
+  versions         DiagramVersion[]
+  accessRules      DiagramAccess[]
+  tags             DiagramTag[]
+}
+
+model DiagramVersion {
+  id             String     @id @default(cuid())
+  diagramId        String
+  versionNumber    Int
+  revisionLabel    String
+  changeSummary    String
   filePath         String
   originalFilename String
   fileFormat       FileFormat
   fileSizeBytes    BigInt
   thumbnailPath    String?
   uploadedById     String
-  parentDiagramId  String?
-  isActive         Boolean    @default(true)
   uploadedAt       DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
 
   // Relations
-  uploadedBy       User            @relation("UploadedDiagrams", fields: [uploadedById], references: [id])
-  parentDiagram    Diagram?        @relation("DiagramHistory", fields: [parentDiagramId], references: [id])
-  childDiagrams    Diagram[]       @relation("DiagramHistory")
-  tags             DiagramTag[]
-  accesses         DiagramAccess[]
+  diagram          Diagram    @relation(fields: [diagramId], references: [id])
+  uploadedBy       User       @relation(fields: [uploadedById], references: [id])
+
+  @@unique([diagramId, versionNumber])
+}
+
+model DiagramAccess {
+  id          String     @id @default(cuid())
+  diagramId   String
+  targetType  TargetType
+  targetId    Int
+  accessLevel AccessLevel
+  policy      AccessPolicy
+  grantedAt   DateTime     @default(now())
+  grantedById String
+
+  // Relations
+  diagram     Diagram      @relation(fields: [diagramId], references: [id])
+  grantedBy   User         @relation("AccessGrantedBy", fields: [grantedById], references: [id])
+
+  @@index([targetType, targetId, diagramId])
 }
 
 model DiagramTag {
-  id        String @id @default(uuid())
+  id          String     @id @default(cuid())
   diagramId String
   tag       String
 
   // Relations
-  diagram   Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
-}
+  diagram   Diagram @relation(fields: [diagramId], references: [id])
 
-model DiagramAccess {
-  id          String    @id @default(uuid())
-  diagramId   String
-  userId      String?   // Optional in case grantType is DEPARTMENT
-  grantType   GrantType
-  grantedAt   DateTime  @default(now())
-  grantedById String
-
-  // Relations
-  diagram   Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
-  user      User?   @relation("ReceivedAccess", fields: [userId], references: [id])
-  grantedBy User    @relation("GrantedAccess", fields: [grantedById], references: [id])
+  @@index([tag])
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
+  id          String     @id @default(cuid())
   userId     String?
   action     String
   targetType String?
   targetId   String?
   ipAddress  String?
-  metadata   Json?
+  metadata   Json
   occurredAt DateTime @default(now())
 
   // Relations
@@ -141,7 +176,7 @@ model AuditLog {
 }
 
 model BackupRecord {
-  id            String       @id @default(uuid())
+  id          String     @id @default(cuid())
   filePath      String
   sizeBytes     BigInt
   status        BackupStatus
@@ -154,11 +189,12 @@ model BackupRecord {
 }
 
 model ReplicationTarget {
-  id             String     @id @default(uuid())
+  id             String     @id @default(cuid())
   host           String
-  port           Int        @default(5432)
+  port           Int        @default(22)
   label          String
-  credentials    Json
+  sshUsername    String
+  sshKeyPath     String
   isActive       Boolean    @default(true)
   lastSyncAt     DateTime?
   lastSyncStatus SyncStatus @default(NEVER)
@@ -166,7 +202,7 @@ model ReplicationTarget {
 }
 
 model SystemConfig {
-  key         String   @id
+  id          String     @id @default(cuid())
   value       String
   updatedAt   DateTime @updatedAt
   updatedById String?
