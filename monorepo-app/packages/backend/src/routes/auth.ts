@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
+import { router } from '../lib/prisma';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/authenticate';
@@ -10,7 +11,6 @@ import {
   verifyRefreshToken 
 } from '../utils/auth';
 
-const router = Router();
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -70,7 +70,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
   });
 
-  await logAction(prisma, {
+  await logAction({
     userId: user.id,
     action: 'LOGIN',
     ipAddress: req.ip
@@ -97,7 +97,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
 // POST /api/auth/logout
 router.post('/logout', authenticate, async (req: Request, res: Response) => {
-  await logAction(prisma, {
+  await logAction({
     userId: req.user!.id,
     action: 'LOGOUT',
     ipAddress: req.ip

@@ -30,6 +30,46 @@ components:
         fullName: { type: string }
         role: { type: string }
         departmentId: { type: string }
+  
+    Diagram:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        departmentId: { type: string }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        tags:
+          type: array
+          items: { type: string }
+        currentVersion:
+          $ref: '#/components/schemas/DiagramVersion'
+
+    DiagramVersion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        diagramId: { type: string }
+        versionNumber: { type: integer }
+        revisionLabel: { type: string }
+        changeSummary: { type: string }
+        fileFormat: { type: string, enum: [PDF, JPEG, PNG, SVG, DWG] }
+        fileSizeBytes: { type: string, description: "Stringified BigInt" }
+        originalFilename: { type: string }
+        uploadedAt: { type: string, format: date-time }
+        thumbnailPath: { type: string, nullable: true }
+
+    AccessRule:
+      type: object
+      properties:
+        id: { type: string }
+        targetType: { type: string, enum: [USER, DEPARTMENT] }
+        targetId: { type: string }
+        accessLevel: { type: string, enum: [VIEW, EDIT, ADMIN] }
+        policy: { type: string, enum: [ALLOW, DENY] }
+        targetName: { type: string, nullable: true }
 
 paths:
   /api/auth/login:
@@ -106,3 +146,233 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+
+  # --- DIAGRAMS BASE ---
+  /api/diagrams:
+    get:
+      summary: List and search diagrams
+      tags: [Diagrams]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: fileFormat
+          in: query
+          schema: { type: string, enum: [PDF, JPEG, PNG, SVG, DWG] }
+        - name: departmentId
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        200:
+          description: Paginated list of diagrams
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Diagram' }
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
+
+    post:
+      summary: Create a new diagram (Upload file)
+      tags: [Diagrams]
+      security:
+        - bearerAuth: []
+      description: Required Role - DC
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, title, departmentId, revisionLabel, changeSummary]
+              properties:
+                file: { type: string, format: binary }
+                title: { type: string }
+                description: { type: string }
+                departmentId: { type: string }
+                tags: { type: string, description: "Comma separated tags" }
+                revisionLabel: { type: string }
+                changeSummary: { type: string }
+      responses:
+        201:
+          description: Diagram created
+        400:
+          description: Validation error or File too large
+
+  /api/diagrams/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get diagram details
+      tags: [Diagrams]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Diagram' }
+    patch:
+      summary: Update diagram metadata
+      tags: [Diagrams]
+      security:
+        - bearerAuth: []
+      description: Required Role - DC
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                tags: { type: string }
+      responses:
+        200:
+          description: Updated
+    delete:
+      summary: Deactivate diagram
+      tags: [Diagrams]
+      security:
+        - bearerAuth: []
+      description: Required Role - DC, ADMIN
+      responses:
+        200:
+          description: Deactivated
+
+  # --- VERSIONS ---
+  /api/diagrams/{id}/versions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: List all versions of a diagram
+      tags: [Versions]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DiagramVersion' }
+    post:
+      summary: Upload a new version
+      tags: [Versions]
+      description: Required Role - DC
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, revisionLabel, changeSummary]
+              properties:
+                file: { type: string, format: binary }
+                revisionLabel: { type: string }
+                changeSummary: { type: string }
+      responses:
+        201:
+          description: Version uploaded
+
+  /api/diagrams/{id}/versions/{versionId}/file:
+    get:
+      summary: Download diagram file
+      tags: [Versions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: The file content
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        206:
+          description: Partial content (Range request)
+
+  /api/diagrams/{id}/versions/{versionId}/thumbnail:
+    get:
+      summary: Get version thumbnail
+      tags: [Versions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: JPEG image
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+
+  # --- ACCESS CONTROL ---
+  /api/diagrams/{id}/access:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: List access rules for a diagram
+      tags: [Access]
+      description: Required Role - DC, ADMIN
+    post:
+      summary: Add an access rule
+      tags: [Access]
+      description: Required Role - DC
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetType, targetId, accessLevel, policy]
+              properties:
+                targetType: { type: string, enum: [USER, DEPARTMENT] }
+                targetId: { type: string }
+                accessLevel: { type: string, enum: [VIEW, EDIT, ADMIN] }
+                policy: { type: string, enum: [ALLOW, DENY] }
+
+  /api/diagrams/{id}/access/{ruleId}:
+    delete:
+      summary: Remove an access rule
+      tags: [Access]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: ruleId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Removed

@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 import path from 'path';
+import diagramRoutes from './routes/diagrams';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -19,7 +20,12 @@ app.use(helmet({
 }));
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+
+
+app.use('/api/diagrams', diagramRoutes);
 
 // Swagger Route
 app.use('/api/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

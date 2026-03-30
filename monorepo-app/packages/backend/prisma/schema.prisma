@@ -137,7 +137,7 @@ model DiagramAccess {
   id          String     @id @default(cuid())
   diagramId   String
   targetType  TargetType
-  targetId    Int
+  targetId    String
   accessLevel AccessLevel
   policy      AccessPolicy
   grantedAt   DateTime     @default(now())
@@ -202,7 +202,7 @@ model ReplicationTarget {
 }
 
 model SystemConfig {
-  id          String     @id @default(cuid())
+  key          String     @id @default(cuid())
   value       String
   updatedAt   DateTime @updatedAt
   updatedById String?
