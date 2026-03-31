@@ -1,9 +1,11 @@
 // src/services/admin.service.ts
 import { prisma } from '../lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AuditLogsQueryInput } from '../schemas/admin.schema';
 
-// ----- System Config -----
+type TransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
+
+// ─── System Config ───────────────────────────────────────────────
 
 export async function getConfig(): Promise<Record<string, string>> {
   const configs = await prisma.systemConfig.findMany();
@@ -26,7 +28,7 @@ export async function upsertConfig(data: Record<string, string>, updatedById: st
   await prisma.$transaction(operations);
 }
 
-// ----- Audit Logs -----
+// ─── Audit Logs ──────────────────────────────────────────────────
 
 export async function getAuditLogs(query: AuditLogsQueryInput) {
   const { page, limit, userId, action, from, to } = query;
@@ -37,9 +39,10 @@ export async function getAuditLogs(query: AuditLogsQueryInput) {
   if (userId) where.userId = userId;
   if (action) where.action = action;
   if (from || to) {
-    where.occurredAt = {};
-    if (from) where.occurredAt.gte = new Date(from);
-    if (to) where.occurredAt.lte = new Date(to);
+    const dateFilter: Prisma.DateTimeFilter = {};
+    if (from) dateFilter.gte = new Date(from);
+    if (to) dateFilter.lte = new Date(to);
+    where.occurredAt = dateFilter;
   }
 
   const [logs, total] = await Promise.all([
@@ -72,7 +75,7 @@ export async function getAuditLogs(query: AuditLogsQueryInput) {
   };
 }
 
-// ----- Backups -----
+// ─── Backups ─────────────────────────────────────────────────────
 
 export async function getBackups() {
   return prisma.backupRecord.findMany({
@@ -92,7 +95,7 @@ export async function getBackups() {
 export async function createBackupRecord(triggeredById: string) {
   return prisma.backupRecord.create({
     data: {
-      filePath: '', // Will be filled by the worker
+      filePath: '',
       sizeBytes: BigInt(0),
       status: 'RUNNING',
       triggeredById,
@@ -104,7 +107,7 @@ export async function getBackupById(id: string) {
   return prisma.backupRecord.findUnique({ where: { id } });
 }
 
-// ----- Replication -----
+// ─── Replication ─────────────────────────────────────────────────
 
 export async function getReplicationTargets() {
   return prisma.replicationTarget.findMany({
@@ -114,7 +117,6 @@ export async function getReplicationTargets() {
       port: true,
       label: true,
       sshUsername: true,
-      // sshKeyPath excluded
       isActive: true,
       lastSyncAt: true,
       lastSyncStatus: true,
@@ -131,7 +133,15 @@ export async function createReplicationTarget(data: {
   sshUsername: string;
   sshKeyPath: string;
 }) {
-  return prisma.replicationTarget.create({ data });
+  const createData: Prisma.ReplicationTargetCreateInput = {
+    host: data.host,
+    port: data.port,
+    label: data.label,
+    sshUsername: data.sshUsername,
+    sshKeyPath: data.sshKeyPath,
+  };
+
+  return prisma.replicationTarget.create({ data: createData });
 }
 
 export async function updateReplicationTarget(
@@ -145,7 +155,19 @@ export async function updateReplicationTarget(
     isActive: boolean;
   }>
 ) {
-  return prisma.replicationTarget.update({ where: { id }, data });
+  const updateData: Prisma.ReplicationTargetUpdateInput = {};
+
+  if (data.host !== undefined) updateData.host = data.host;
+  if (data.port !== undefined) updateData.port = data.port;
+  if (data.label !== undefined) updateData.label = data.label;
+  if (data.sshUsername !== undefined) updateData.sshUsername = data.sshUsername;
+  if (data.sshKeyPath !== undefined) updateData.sshKeyPath = data.sshKeyPath;
+  if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+  return prisma.replicationTarget.update({
+    where: { id },
+    data: updateData,
+  });
 }
 
 export async function deleteReplicationTarget(id: string) {

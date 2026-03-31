@@ -1,5 +1,6 @@
 // src/services/departments.service.ts
-import   { prisma } from '../lib/prisma';
+import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { CreateDepartmentInput, UpdateDepartmentInput } from '../schemas/departments.schema';
 
 export async function getAllActiveDepartments() {
@@ -58,7 +59,8 @@ export async function getDepartmentStats(id: string) {
 
 export async function checkDepartmentCodeExists(code: string, excludeId?: string): Promise<boolean> {
   const normalizedCode = code.toUpperCase();
-  const where: any = { code: normalizedCode };
+
+  const where: Prisma.DepartmentWhereInput = { code: normalizedCode };
 
   if (excludeId) {
     where.id = { not: excludeId };
@@ -69,19 +71,25 @@ export async function checkDepartmentCodeExists(code: string, excludeId?: string
 }
 
 export async function createDepartment(data: CreateDepartmentInput) {
-  return prisma.department.create({
-    data: {
-      nameAr: data.nameAr,
-      nameEn: data.nameEn,
-      code: data.code, // Already uppercased by Zod transform
-    },
-  });
+  const createData: Prisma.DepartmentCreateInput = {
+    nameAr: data.nameAr,
+    nameEn: data.nameEn,
+    code: data.code,
+  };
+
+  return prisma.department.create({ data: createData });
 }
 
 export async function updateDepartment(id: string, data: UpdateDepartmentInput) {
+  const updateData: Prisma.DepartmentUpdateInput = {};
+
+  if (data.nameAr !== undefined) updateData.nameAr = data.nameAr;
+  if (data.nameEn !== undefined) updateData.nameEn = data.nameEn;
+  if (data.code !== undefined) updateData.code = data.code;
+
   return prisma.department.update({
     where: { id },
-    data,
+    data: updateData,
   });
 }
 
@@ -89,15 +97,28 @@ export async function getDepartmentById(id: string) {
   return prisma.department.findUnique({ where: { id } });
 }
 
-export async function deactivateDepartment(id: string) {
-  // Return counts for guard checks
+// ─── Deactivate Department ───────────────────────────────────────
+
+export interface DeactivateResult {
+  success: true;
+  department: Prisma.DepartmentGetPayload<Record<string, never>>;
+}
+
+export interface DeactivateError {
+  success: false;
+  error: string;
+  message: string;
+  count: number;
+}
+
+export async function deactivateDepartment(id: string): Promise<DeactivateResult | DeactivateError> {
   const activeUserCount = await prisma.user.count({
     where: { departmentId: id, isActive: true },
   });
 
   if (activeUserCount > 0) {
     return {
-      success: false as const,
+      success: false,
       error: 'DEPARTMENT_HAS_ACTIVE_USERS',
       message: `Cannot deactivate: department has ${activeUserCount} active user(s). Reassign or deactivate them first.`,
       count: activeUserCount,
@@ -110,7 +131,7 @@ export async function deactivateDepartment(id: string) {
 
   if (activeDiagramCount > 0) {
     return {
-      success: false as const,
+      success: false,
       error: 'DEPARTMENT_HAS_ACTIVE_DIAGRAMS',
       message: `Cannot deactivate: department owns ${activeDiagramCount} active diagram(s). Reassign or deactivate them first.`,
       count: activeDiagramCount,
@@ -122,5 +143,14 @@ export async function deactivateDepartment(id: string) {
     data: { isActive: false },
   });
 
-  return { success: true as const, department: updated };
+  return { success: true, department: updated };
+}
+
+// ─── Activate Department ─────────────────────────────────────────
+
+export async function activateDepartment(id: string) {
+  return prisma.department.update({
+    where: { id },
+    data: { isActive: true },
+  });
 }
