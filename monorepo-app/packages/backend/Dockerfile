@@ -20,6 +20,7 @@ COPY --from=builder /app/packages/backend/prisma ./prisma
 COPY --from=builder /app/packages/backend/prisma*.config*.ts ./
 COPY --from=builder /app/packages/backend/package*.json ./
 COPY --from=builder /app/packages/backend/swagger*.yaml ./
+RUN mkdir -p ./output
 
 # 2. Copy the entrypoint script from your local packages/backend folder
 # Make sure this file exists in your packages/backend folder on Windows!

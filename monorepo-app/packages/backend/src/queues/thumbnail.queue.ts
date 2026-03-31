@@ -1,5 +1,6 @@
+// src/queues/thumbnail.queue.ts
 import { Queue } from 'bullmq';
-import { redisConnection } from '../config/redis';
+import { redisConnection } from '../lib/redis';
 
 export interface ThumbnailJobData {
   versionId: string;
@@ -7,26 +8,16 @@ export interface ThumbnailJobData {
   fileFormat: string;
 }
 
+
 export const thumbnailQueue = new Queue<ThumbnailJobData>('thumbnail', {
   connection: redisConnection,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
       type: 'exponential',
-      delay: 2000,
+      delay: 5000,
     },
-    removeOnComplete: {
-      age: 86400, // 24 hours
-      count: 1000,
-    },
-    removeOnFail: {
-      age: 604800, // 7 days
-    },
+    removeOnComplete: { count: 1000 },
+    removeOnFail: { count: 5000 },
   },
 });
-
-export async function enqueueThumbnailJob(data: ThumbnailJobData): Promise<void> {
-  await thumbnailQueue.add('generate-thumbnail', data, {
-    jobId: `thumb-${data.versionId}`,
-  });
-}

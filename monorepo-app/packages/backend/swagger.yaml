@@ -1,77 +1,103 @@
-openapi: 3.0.0
+# docs/swagger.yaml
+openapi: 3.0.3
 info:
-  title: Backend API Documentation
+  title: Diagram Management System API
+  description: |
+    Complete API documentation for the Diagram Management System.
+
+    ## Authentication
+    All endpoints (except `/api/health`) require a valid JWT token sent via:
+    - `Authorization: Bearer <token>` header, OR
+    - `token` cookie
+
+    ## Roles
+    | Role     | Description                              |
+    |----------|------------------------------------------|
+    | ENGINEER | Can view diagrams they have access to    |
+    | DC       | Document Controller — uploads & manages  |
+    | MANAGER  | Can view reports                         |
+    | ADMIN    | Full system administration               |
+
+    ## Access Control (Deny-Override)
+    1. If ANY DENY rule matches user or department → **denied**
+    2. If ANY ALLOW rule matches user or department → **allowed**
+    3. No matching rule → **denied** (default)
+    4. DC and ADMIN bypass access checks entirely
+
+    ## Error Format
+    All errors return a consistent JSON structure:
+    ```json
+    {
+      "error": "ERROR_CODE",
+      "message": "Human-readable description",
+      "details": []
+    }
+    ```
   version: 1.0.0
-  description: API documentation for Auth and User management
+  contact:
+    name: API Support
+  license:
+    name: MIT
 
 servers:
-  - url: http://localhost:80  # Use the URL you type in the browser
-    description: Production/Staging Server
+  - url: http://localhost:80
+    description: Production (ngnix server)
   - url: http://localhost:3000
     description: Local development
 
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: refreshToken
+tags:
+  - name: Health
+    description: Server health check
+  - name: Auth
+    description: Authentication endpoints
+  - name: Departments
+    description: Department management (Admin)
+  - name: Users
+    description: User management (Admin)
+  - name: Diagrams
+    description: Diagram CRUD and file management
+  - name: Versions
+    description: Diagram version management
+  - name: Access
+    description: Diagram access rule management
+  - name: Reports
+    description: Reporting and analytics (Manager/Admin)
+  - name: Admin
+    description: System administration (Admin)
+  - name: Backups
+    description: Database backup management (Admin)
+  - name: Replication
+    description: Replication target management (Admin)
 
-  schemas:
-    User:
-      type: object
-      properties:
-        id: { type: string }
-        username: { type: string }
-        fullName: { type: string }
-        role: { type: string }
-        departmentId: { type: string }
-  
-    Diagram:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        title: { type: string }
-        description: { type: string, nullable: true }
-        departmentId: { type: string }
-        isActive: { type: boolean }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
-        tags:
-          type: array
-          items: { type: string }
-        currentVersion:
-          $ref: '#/components/schemas/DiagramVersion'
+security:
+  - bearerAuth: []
 
-    DiagramVersion:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        diagramId: { type: string }
-        versionNumber: { type: integer }
-        revisionLabel: { type: string }
-        changeSummary: { type: string }
-        fileFormat: { type: string, enum: [PDF, JPEG, PNG, SVG, DWG] }
-        fileSizeBytes: { type: string, description: "Stringified BigInt" }
-        originalFilename: { type: string }
-        uploadedAt: { type: string, format: date-time }
-        thumbnailPath: { type: string, nullable: true }
-
-    AccessRule:
-      type: object
-      properties:
-        id: { type: string }
-        targetType: { type: string, enum: [USER, DEPARTMENT] }
-        targetId: { type: string }
-        accessLevel: { type: string, enum: [VIEW, EDIT, ADMIN] }
-        policy: { type: string, enum: [ALLOW, DENY] }
-        targetName: { type: string, nullable: true }
+# ═══════════════════════════════════════════════════════════════════
+# PATHS
+# ═══════════════════════════════════════════════════════════════════
 
 paths:
+  # ─── Health ───────────────────────────────────────────────────
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns server status. No authentication required.
+      security: []
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                timestamp: "2025-01-15T10:30:00.000Z"
+
+
+  # ─── Auth ───────────────────────────────────────────────────
+
   /api/auth/login:
     post:
       summary: Login to get access token
@@ -147,232 +173,2816 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
 
-  # --- DIAGRAMS BASE ---
-  /api/diagrams:
+  # ─── Departments ─────────────────────────────────────────────
+  /api/departments:
     get:
-      summary: List and search diagrams
-      tags: [Diagrams]
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: search
-          in: query
-          schema: { type: string }
-        - name: fileFormat
-          in: query
-          schema: { type: string, enum: [PDF, JPEG, PNG, SVG, DWG] }
-        - name: departmentId
-          in: query
-          schema: { type: string }
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 20 }
+      tags: [Departments]
+      summary: Get active departments
+      description: |
+        Returns all active departments. Available to all authenticated users.
+        Used by DC (diagram creation form), Admin (user creation form), and all selectors.
+      operationId: getActiveDepartments
       responses:
-        200:
-          description: Paginated list of diagrams
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: '#/components/schemas/Diagram' }
-                  total: { type: integer }
-                  page: { type: integer }
-                  limit: { type: integer }
-
-    post:
-      summary: Create a new diagram (Upload file)
-      tags: [Diagrams]
-      security:
-        - bearerAuth: []
-      description: Required Role - DC
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [file, title, departmentId, revisionLabel, changeSummary]
-              properties:
-                file: { type: string, format: binary }
-                title: { type: string }
-                description: { type: string }
-                departmentId: { type: string }
-                tags: { type: string, description: "Comma separated tags" }
-                revisionLabel: { type: string }
-                changeSummary: { type: string }
-      responses:
-        201:
-          description: Diagram created
-        400:
-          description: Validation error or File too large
-
-  /api/diagrams/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: string }
-    get:
-      summary: Get diagram details
-      tags: [Diagrams]
-      security:
-        - bearerAuth: []
-      responses:
-        200:
-          description: Success
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Diagram' }
-    patch:
-      summary: Update diagram metadata
-      tags: [Diagrams]
-      security:
-        - bearerAuth: []
-      description: Required Role - DC
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title: { type: string }
-                description: { type: string }
-                tags: { type: string }
-      responses:
-        200:
-          description: Updated
-    delete:
-      summary: Deactivate diagram
-      tags: [Diagrams]
-      security:
-        - bearerAuth: []
-      description: Required Role - DC, ADMIN
-      responses:
-        200:
-          description: Deactivated
-
-  # --- VERSIONS ---
-  /api/diagrams/{id}/versions:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: string }
-    get:
-      summary: List all versions of a diagram
-      tags: [Versions]
-      responses:
-        200:
+        "200":
+          description: List of active departments
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/DiagramVersion' }
+                items:
+                  $ref: "#/components/schemas/DepartmentBasic"
+              example:
+                - id: clx1234567890
+                  nameAr: "قسم الهندسة"
+                  nameEn: Engineering
+                  code: ENG
+                - id: clx0987654321
+                  nameAr: "قسم العمليات"
+                  nameEn: Operations
+                  code: OPS
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
     post:
-      summary: Upload a new version
-      tags: [Versions]
-      description: Required Role - DC
+      tags: [Departments]
+      summary: Create department
+      description: |
+        Admin only. Creates a new department.
+        - Code is normalized to UPPERCASE before storage
+        - Code uniqueness is checked case-insensitively
+      operationId: createDepartment
       requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [file, revisionLabel, changeSummary]
-              properties:
-                file: { type: string, format: binary }
-                revisionLabel: { type: string }
-                changeSummary: { type: string }
-      responses:
-        201:
-          description: Version uploaded
-
-  /api/diagrams/{id}/versions/{versionId}/file:
-    get:
-      summary: Download diagram file
-      tags: [Versions]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-        - name: versionId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        200:
-          description: The file content
-          content:
-            application/octet-stream:
-              schema: { type: string, format: binary }
-        206:
-          description: Partial content (Range request)
-
-  /api/diagrams/{id}/versions/{versionId}/thumbnail:
-    get:
-      summary: Get version thumbnail
-      tags: [Versions]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-        - name: versionId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        200:
-          description: JPEG image
-          content:
-            image/jpeg:
-              schema: { type: string, format: binary }
-
-  # --- ACCESS CONTROL ---
-  /api/diagrams/{id}/access:
-    parameters:
-      - name: id
-        in: path
         required: true
-        schema: { type: string }
-    get:
-      summary: List access rules for a diagram
-      tags: [Access]
-      description: Required Role - DC, ADMIN
-    post:
-      summary: Add an access rule
-      tags: [Access]
-      description: Required Role - DC
-      requestBody:
         content:
           application/json:
             schema:
-              type: object
-              required: [targetType, targetId, accessLevel, policy]
-              properties:
-                targetType: { type: string, enum: [USER, DEPARTMENT] }
-                targetId: { type: string }
-                accessLevel: { type: string, enum: [VIEW, EDIT, ADMIN] }
-                policy: { type: string, enum: [ALLOW, DENY] }
+              $ref: "#/components/schemas/DepartmentCreateRequest"
+            example:
+              nameAr: "قسم الهندسة"
+              nameEn: Engineering Department
+              code: ENG_DEPT
+      responses:
+        "201":
+          description: Department created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentFull"
+              example:
+                id: clx1234567890
+                nameAr: "قسم الهندسة"
+                nameEn: Engineering Department
+                code: ENG_DEPT
+                isActive: true
+                createdAt: "2025-01-15T10:30:00.000Z"
+                updatedAt: "2025-01-15T10:30:00.000Z"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Department code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: DEPARTMENT_CODE_EXISTS
+                message: A department with this code already exists
+
+  /api/departments/all:
+    get:
+      tags: [Departments]
+      summary: Get all departments (including inactive)
+      description: |
+        Admin only. Returns ALL departments including inactive ones.
+        Used exclusively by the Admin Departments management page.
+      operationId: getAllDepartments
+      responses:
+        "200":
+          description: All departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentFull"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/departments/{id}:
+    patch:
+      tags: [Departments]
+      summary: Update department
+      description: |
+        Admin only. Update department name(s) and/or code.
+        - If code is changed, uniqueness is re-checked (excluding current department)
+        - Code change is logged separately as DEPARTMENT_CODE_CHANGED
+      operationId: updateDepartment
+      parameters:
+        - $ref: "#/components/parameters/DepartmentIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentUpdateRequest"
+            example:
+              nameEn: Updated Engineering
+              code: ENG_V2
+      responses:
+        "200":
+          description: Department updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentFull"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Department code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: DEPARTMENT_CODE_EXISTS
+                message: A department with this code already exists
+
+  /api/departments/{id}/stats:
+    get:
+      tags: [Departments]
+      summary: Get department statistics
+      description: |
+        Admin only. Returns department info with user and diagram counts.
+        Used by Admin to assess impact before deactivating a department.
+      operationId: getDepartmentStats
+      parameters:
+        - $ref: "#/components/parameters/DepartmentIdParam"
+      responses:
+        "200":
+          description: Department statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentStats"
+              example:
+                id: clx1234567890
+                nameAr: "قسم الهندسة"
+                nameEn: Engineering
+                code: ENG
+                isActive: true
+                activeUserCount: 5
+                totalUserCount: 8
+                activeDiagramCount: 42
+                totalDiagramCount: 50
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/departments/{id}/deactivate:
+    patch:
+      tags: [Departments]
+      summary: Deactivate department
+      description: |
+        Admin only. Soft-deactivates a department (hard deletion is NOT supported).
+
+        Guards (checked in order, fail-fast):
+        1. If department has active users → 409 DEPARTMENT_HAS_ACTIVE_USERS
+        2. If department has active diagrams → 409 DEPARTMENT_HAS_ACTIVE_DIAGRAMS
+
+        This preserves referential integrity of all historical audit logs,
+        diagram version records, and access rules.
+      operationId: deactivateDepartment
+      parameters:
+        - $ref: "#/components/parameters/DepartmentIdParam"
+      responses:
+        "200":
+          description: Department deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentFull"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Cannot deactivate due to active users or diagrams
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeactivationConflictError"
+              examples:
+                activeUsers:
+                  summary: Has active users
+                  value:
+                    error: DEPARTMENT_HAS_ACTIVE_USERS
+                    message: "Cannot deactivate: department has 5 active user(s). Reassign or deactivate them first."
+                    count: 5
+                activeDiagrams:
+                  summary: Has active diagrams
+                  value:
+                    error: DEPARTMENT_HAS_ACTIVE_DIAGRAMS
+                    message: "Cannot deactivate: department owns 12 active diagram(s). Reassign or deactivate them first."
+                    count: 12
+
+  # ─── Users ───────────────────────────────────────────────────
+  /api/users:
+    get:
+      tags: [Users]
+      summary: Paginated user list
+      description: Admin only. Supports filtering by role, department, active status, and search.
+      operationId: getUsers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: role
+          in: query
+          schema:
+            $ref: "#/components/schemas/RoleEnum"
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Searches username, fullName, email (case-insensitive)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Users]
+      summary: Create user
+      description: |
+        Admin only.
+        - departmentId is required if role is ENGINEER
+        - Password is hashed with bcrypt (12 rounds)
+        - Response never includes passwordHash
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+            example:
+              username: john.doe
+              fullName: John Doe
+              email: john@example.com
+              role: ENGINEER
+              departmentId: clx1234567890
+              password: SecureP@ss123
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unconst id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;orized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: USERNAME_EXISTS
+                message: A user with this username already exists
+
+  /api/users/engineers:
+    get:
+      tags: [Users]
+      summary: Get active engineers
+      description: |
+        DC and Admin only. Returns all active ENGINEER users with department info.
+        Used in access selector when granting diagram access.
+      operationId: getActiveEngineers
+      responses:
+        "200":
+          description: Active engineers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserEngineerResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/users/{id}:
+    patch:
+      tags: [Users]
+      summary: Update user
+      description: |
+        Admin only.
+        - Cannot change your own role (returns 403)
+        - Can update: fullName, email, role, departmentId, isActive
+      operationId: updateUser
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+            example:
+              fullName: John D. Smith
+              role: DC
+              isActive: true
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden (including self-role-change attempt)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: FORBIDDEN
+                message: You cannot change your own role
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/users/{id}/password:
+    patch:
+      tags: [Users]
+      summary: Reset user password
+      description: Admin only. Sets a new password for the specified user.
+      operationId: resetUserPassword
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+            example:
+              newPassword: NewSecureP@ss456
+      responses:
+        "200":
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+                    example: Password has been reset successfully
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Diagrams ────────────────────────────────────────────────
+  /api/diagrams:
+    get:
+      tags: [Diagrams]
+      summary: List diagrams
+      description: |
+        Authenticated.
+        - **ENGINEER**: only sees diagrams they have been granted access to (via access rules)
+        - **DC / ADMIN / MANAGER**: sees all active diagrams
+
+        Each result includes the current version summary (joined via currentVersionId).
+      operationId: listDiagrams
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          description: Matches title (ILIKE) or tag
+          schema:
+            type: string
+        - name: fileFormat
+          in: query
+          schema:
+            $ref: "#/components/schemas/FileFormatEnum"
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+        - name: uploadedFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: uploadedTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paginated diagram list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagramPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Diagrams]
+      summary: Create diagram with first version
+      description: |
+        DC only. Creates a new diagram and its first version (versionNumber=1).
+        Uses multipart/form-data for file upload.
+
+        Transaction:
+        1. INSERT diagram
+        2. INSERT diagram_version (versionNumber=1)
+        3. UPDATE diagram SET currentVersionId
+        4. INSERT diagram_tags (from comma-separated tags string)
+        5. Audit log: DIAGRAM_CREATED
+        6. Enqueue thumbnail generation job
+      operationId: createDiagram
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/DiagramCreateFormData"
+      responses:
+        "201":
+          description: Diagram and version created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagramCreateResponse"
+        "400":
+          description: Validation error or file type not allowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                validation:
+                  summary: Validation error
+                  value:
+                    error: VALIDATION_ERROR
+                    message: Request validation failed
+                    details:
+                      - path: title
+                        message: Title is required
+                fileType:
+                  summary: File type not allowed
+                  value:
+                    error: UPLOAD_ERROR
+                    message: 'File type ".exe" is not allowed. Accepted: .pdf, .jpg, .jpeg, .png, .svg, .dwg'
+                fileSize:
+                  summary: File too large
+                  value:
+                    error: FILE_TOO_LARGE
+                    message: File exceeds maximum allowed size of 50 MB
+                missingFile:
+                  summary: Missing file
+                  value:
+                    error: VALIDATION_ERROR
+                    message: File is required
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/diagrams/{id}:
+    get:
+      tags: [Diagrams]
+      summary: Get diagram details
+      description: |
+        Authenticated + access check.
+        Returns diagram + current version + all tags + version count.
+        DC and ADMIN bypass access check.
+      operationId: getDiagram
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+      responses:
+        "200":
+          description: Diagram detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagramDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [Diagrams]
+      summary: Update diagram metadata
+      description: |
+        DC only. Updates title, description, and/or tags.
+        Tags are replaced entirely (old tags deleted, new ones inserted).
+      operationId: updateDiagram
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagramUpdateRequest"
+            example:
+              title: Updated Diagram Title
+              tags: electrical,phase-2,reviewed
+      responses:
+        "200":
+          description: Diagram updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagramDetailResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Diagrams]
+      summary: Deactivate diagram (soft delete)
+      description: |
+        DC or ADMIN. Sets isActive=false.
+        Diagram and all versions remain in the database for historical reference.
+      operationId: deactivateDiagram
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+      responses:
+        "200":
+          description: Diagram deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - id
+                properties:
+                  message:
+                    type: string
+                    example: Diagram deactivated
+                  id:
+                    type: string
+                    example: clx1234567890
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Versions ────────────────────────────────────────────────
+  /api/diagrams/{id}/versions:
+    get:
+      tags: [Versions]
+      summary: List diagram versions
+      description: |
+        Authenticated + access check. Returns all versions ordered by versionNumber ASC.
+      operationId: getDiagramVersions
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+      responses:
+        "200":
+          description: Version list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiagramVersionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags: [Versions]
+      summary: Upload new version
+      description: |
+        DC only. Uploads a new version for an existing diagram.
+
+        Transaction:
+        1. SELECT MAX(versionNumber) for this diagram
+        2. INSERT diagram_version (versionNumber = max + 1)
+        3. UPDATE diagram SET currentVersionId
+        4. Audit log: VERSION_UPLOADED
+        5. Enqueue thumbnail generation job
+      operationId: createDiagramVersion
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/DiagramVersionCreateFormData"
+      responses:
+        "201":
+          description: Version created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagramVersionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/diagrams/{id}/versions/{versionId}/file:
+    get:
+      tags: [Versions]
+      summary: Download version file
+      description: |
+        Authenticated + access check.
+        Streams the file with correct Content-Type.
+        Supports HTTP Range header for partial content (206 responses).
+        Logs DIAGRAM_DOWNLOADED audit event.
+      operationId: downloadVersionFile
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+        - $ref: "#/components/parameters/VersionIdParam"
+        - name: Range
+          in: header
+          description: "Byte range (e.g. bytes=0-1023)"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full file content
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="diagram.pdf"'
+            Accept-Ranges:
+              schema:
+                type: string
+                example: bytes
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content (Range request)
+          headers:
+            Content-Range:
+              schema:
+                type: string
+                example: bytes 0-1023/8192
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: Range Not Satisfiable
+
+  /api/diagrams/{id}/versions/{versionId}/thumbnail:
+    get:
+      tags: [Versions]
+      summary: Get version thumbnail
+      description: |
+        Authenticated + access check.
+        Streams the 400×300 JPEG thumbnail.
+        Returns 404 if no thumbnail is available (e.g., DWG files).
+        Response is cached for 24 hours.
+      operationId: getVersionThumbnail
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+        - $ref: "#/components/parameters/VersionIdParam"
+      responses:
+        "200":
+          description: JPEG thumbnail
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=86400"
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Thumbnail not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: THUMBNAIL_NOT_FOUND
+                message: No thumbnail available for this version
+
+  # ─── Access Rules ────────────────────────────────────────────
+  /api/diagrams/{id}/access:
+    get:
+      tags: [Access]
+      summary: List access rules for a diagram
+      description: |
+        DC or ADMIN. Returns all access rules with resolved target names
+        (user fullName+username or department nameEn+code).
+      operationId: getDiagramAccessRules
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+      responses:
+        "200":
+          description: Access rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiagramAccessRuleResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags: [Access]
+      summary: Add access rule
+      description: |
+        DC only. Adds an access rule for a user or department on a diagram.
+        Duplicate check: same targetType + targetId + diagramId + policy must not already exist.
+      operationId: createDiagramAccessRule
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagramAccessRuleCreateRequest"
+            example:
+              targetType: USER
+              targetId: clxUSER123
+              accessLevel: VIEW
+              policy: ALLOW
+      responses:
+        "201":
+          description: Access rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagramAccessRuleResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Duplicate access rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: DUPLICATE_RULE
+                message: An identical access rule already exists for this target and policy
 
   /api/diagrams/{id}/access/{ruleId}:
     delete:
-      summary: Remove an access rule
       tags: [Access]
+      summary: Remove access rule
+      description: DC only. Deletes a specific access rule from a diagram.
+      operationId: deleteDiagramAccessRule
+      parameters:
+        - $ref: "#/components/parameters/DiagramIdParam"
+        - $ref: "#/components/parameters/RuleIdParam"
+      responses:
+        "200":
+          description: Access rule removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - ruleId
+                properties:
+                  message:
+                    type: string
+                    example: Access rule removed
+                  ruleId:
+                    type: string
+                    example: clxRULE123
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Rule or diagram not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: NOT_FOUND
+                message: Access rule not found for this diagram
+
+  # ─── Reports ─────────────────────────────────────────────────
+  /api/reports/summary:
+    get:
+      tags: [Reports]
+      summary: Reports summary
+      description: |
+        MANAGER and ADMIN only. Returns aggregate statistics.
+        "This month" calculations use the first day of the current calendar month.
+      operationId: getReportSummary
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSummaryResponse"
+              example:
+                totalActiveDiagrams: 156
+                totalVersions: 423
+                uploadsThisMonth: 12
+                downloadsThisMonth: 89
+                activeUsersThisMonth: 15
+                storageUsedBytes: "1073741824"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/reports/uploads-over-time:
+    get:
+      tags: [Reports]
+      summary: Uploads over time
+      description: |
+        MANAGER and ADMIN only. Returns upload counts grouped by time period.
+      operationId: getUploadsOverTime
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - name: granularity
+          in: query
+          description: Time grouping granularity
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: month
+      responses:
+        "200":
+          description: Upload time series
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimeSeriesPoint"
+              example:
+                - period: "2025-01-01T00:00:00.000Z"
+                  count: 15
+                - period: "2025-02-01T00:00:00.000Z"
+                  count: 22
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/reports/downloads-by-diagram:
+    get:
+      tags: [Reports]
+      summary: Top downloaded diagrams
+      description: |
+        MANAGER and ADMIN only. Returns top 20 diagrams by download count
+        (from audit_logs WHERE action = 'DIAGRAM_DOWNLOADED').
+      operationId: getDownloadsByDiagram
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Top downloaded diagrams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiagramDownloadCount"
+              example:
+                - diagramId: clxDIAGRAM001
+                  title: Main Electrical Panel
+                  downloadCount: 45
+                - diagramId: clxDIAGRAM002
+                  title: Floor Plan - Level 3
+                  downloadCount: 32
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/reports/access-by-department:
+    get:
+      tags: [Reports]
+      summary: Access statistics by department
+      description: MANAGER and ADMIN only. Returns diagram and download counts per department.
+      operationId: getAccessByDepartment
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Department access statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentAccessStats"
+              example:
+                - departmentId: clxDEPT001
+                  nameAr: "قسم الهندسة"
+                  nameEn: Engineering
+                  diagramCount: 42
+                  downloadCount: 156
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/reports/export:
+    get:
+      tags: [Reports]
+      summary: Export reports as PDF or Excel
+      description: |
+        MANAGER and ADMIN only. Generates a downloadable report file.
+
+        **PDF**: Uses PDFKit with formatted tables (Summary, Uploads, Downloads, Departments).
+        **Excel**: Uses ExcelJS with 4 worksheets (Summary, Uploads Over Time, Top Downloads, By Department).
+
+        Response is streamed with Content-Disposition: attachment.
+      operationId: exportReport
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - name: format
+          in: query
+          required: true
+          description: Export file format
+          schema:
+            type: string
+            enum: [pdf, excel]
+      responses:
+        "200":
+          description: Report file
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="report-2025-01-15.xlsx"'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ─── Admin: Config ───────────────────────────────────────────
+  /api/admin/config:
+    get:
+      tags: [Admin]
+      summary: Get system configuration
+      description: Admin only. Returns all SystemConfig rows as a key-value map.
+      operationId: getSystemConfig
+      responses:
+        "200":
+          description: Configuration map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigMap"
+              example:
+                MAX_UPLOAD_SIZE_MB: "50"
+                MAINTENANCE_MODE: "false"
+                SESSION_TIMEOUT_MINUTES: "30"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    patch:
+      tags: [Admin]
+      summary: Update system configuration
+      description: |
+        Admin only. Upserts SystemConfig rows.
+        Keys that don't exist are created; existing keys are updated.
+        Logs CONFIG_UPDATED audit event.
+      operationId: updateSystemConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigMap"
+            example:
+              MAX_UPLOAD_SIZE_MB: "100"
+              MAINTENANCE_MODE: "true"
+      responses:
+        "200":
+          description: Updated configuration map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigMap"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ─── Admin: Audit Logs ──────────────────────────────────────
+  /api/admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Paginated audit logs
+      description: Admin only. Returns audit log entries with joined user info.
+      operationId: getAuditLogs
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: userId
+          in: query
+          description: Filter by user ID
+          schema:
+            type: string
+        - name: action
+          in: query
+          description: Filter by action name (e.g., DIAGRAM_CREATED, USER_UPDATED)
+          schema:
+            type: string
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Paginated audit logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ─── Admin: Backups ─────────────────────────────────────────
+  /api/admin/backups:
+    get:
+      tags: [Backups]
+      summary: List all backup records
+      description: Admin only.
+      operationId: getBackups
+      responses:
+        "200":
+          description: Backup records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BackupRecordResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Backups]
+      summary: Trigger a new backup
+      description: |
+        Admin only. Creates a BackupRecord with status=RUNNING and enqueues
+        a BullMQ 'backup' job. The worker runs pg_dump + tar of uploaded files.
+      operationId: triggerBackup
+      responses:
+        "202":
+          description: Backup job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - backupRecordId
+                properties:
+                  backupRecordId:
+                    type: string
+                    example: clxBACKUP001
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/backups/{id}/restore:
+    post:
+      tags: [Backups]
+      summary: Trigger restore from backup
+      description: |
+        Admin only. Requires confirmToken="RESTORE" in the request body.
+        Only successful backups can be restored.
+        Enqueues a BullMQ 'restore' job.
+      operationId: triggerRestore
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
-        - name: ruleId
-          in: path
-          required: true
-          schema: { type: string }
+          description: Backup record ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreRequest"
+            example:
+              confirmToken: RESTORE
       responses:
-        200:
-          description: Removed
+        "202":
+          description: Restore job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - backupRecordId
+                properties:
+                  message:
+                    type: string
+                    example: Restore job enqueued
+                  backupRecordId:
+                    type: string
+        "400":
+          description: Invalid confirm token or backup not successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                badToken:
+                  summary: Wrong confirm token
+                  value:
+                    error: VALIDATION_ERROR
+                    message: Request validation failed
+                    details:
+                      - path: confirmToken
+                        message: 'confirmToken must be exactly "RESTORE"'
+                notSuccessful:
+                  summary: Backup not successful
+                  value:
+                    error: INVALID_BACKUP
+                    message: Can only restore from a successful backup
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Admin: Replication ─────────────────────────────────────
+  /api/admin/replication:
+    get:
+      tags: [Replication]
+      summary: List replication targets
+      description: |
+        Admin only. Returns all replication targets.
+        **sshKeyPath is excluded from the response** for security.
+      operationId: getReplicationTargets
+      responses:
+        "200":
+          description: Replication targets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReplicationTargetResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Replication]
+      summary: Create replication target
+      description: Admin only.
+      operationId: createReplicationTarget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplicationTargetCreateRequest"
+            example:
+              host: 192.168.1.100
+              port: 22
+              label: DR Site Alpha
+              sshUsername: replicator
+              sshKeyPath: /home/app/.ssh/dr_alpha_key
+      responses:
+        "201":
+          description: Replication target created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplicationTargetFullResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/replication/{id}:
+    patch:
+      tags: [Replication]
+      summary: Update replication target
+      description: Admin only.
+      operationId: updateReplicationTarget
+      parameters:
+        - $ref: "#/components/parameters/ReplicationTargetIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplicationTargetUpdateRequest"
+      responses:
+        "200":
+          description: Updated (sshKeyPath excluded from response)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplicationTargetResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Replication]
+      summary: Delete replication target
+      description: Admin only. Hard delete.
+      operationId: deleteReplicationTarget
+      parameters:
+        - $ref: "#/components/parameters/ReplicationTargetIdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/replication/{id}/sync:
+    post:
+      tags: [Replication]
+      summary: Trigger replication sync
+      description: |
+        Admin only. Enqueues a BullMQ 'replication' job.
+        Worker will rsync files + pg_dump/scp to the remote host.
+      operationId: syncReplicationTarget
+      parameters:
+        - $ref: "#/components/parameters/ReplicationTargetIdParam"
+      responses:
+        "202":
+          description: Sync job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - targetId
+                properties:
+                  message:
+                    type: string
+                    example: Replication job enqueued
+                  targetId:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+# ═══════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ═══════════════════════════════════════════════════════════════════
+
+components:
+  # ─── Security Schemes ────────────────────────────────────────
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from the login endpoint.
+        Can also be sent as a `token` cookie.
+
+  # ─── Parameters ──────────────────────────────────────────────
+  parameters:
+    DepartmentIdParam:
+      name: id
+      in: path
+      required: true
+      description: Department ID (cuid)
+      schema:
+        type: string
+        example: clx1234567890
+
+    UserIdParam:
+      name: id
+      in: path
+      required: true
+      description: User ID (cuid)
+      schema:
+        type: string
+        example: clxUSER123
+
+    DiagramIdParam:
+      name: id
+      in: path
+      required: true
+      description: Diagram ID (cuid)
+      schema:
+        type: string
+        example: clxDIAGRAM001
+
+    VersionIdParam:
+      name: versionId
+      in: path
+      required: true
+      description: DiagramVersion ID (cuid)
+      schema:
+        type: string
+        example: clxVERSION001
+
+    RuleIdParam:
+      name: ruleId
+      in: path
+      required: true
+      description: DiagramAccess rule ID (cuid)
+      schema:
+        type: string
+        example: clxRULE001
+
+    ReplicationTargetIdParam:
+      name: id
+      in: path
+      required: true
+      description: ReplicationTarget ID (cuid)
+      schema:
+        type: string
+        example: clxREPL001
+
+    DateFrom:
+      name: from
+      in: query
+      description: Start date filter (ISO 8601)
+      schema:
+        type: string
+        format: date-time
+        example: "2025-01-01T00:00:00.000Z"
+
+    DateTo:
+      name: to
+      in: query
+      description: End date filter (ISO 8601)
+      schema:
+        type: string
+        format: date-time
+        example: "2025-12-31T23:59:59.999Z"
+
+  # ─── Reusable Responses ─────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: UNAUTHORIZED
+            message: Authentication required
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: FORBIDDEN
+            message: "Access denied. Required roles: ADMIN"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: NOT_FOUND
+            message: Record not found
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+          example:
+            error: VALIDATION_ERROR
+            message: Request validation failed
+            details:
+              - path: title
+                message: Title is required
+              - path: code
+                message: Code must be between 2 and 10 characters
+
+  # ─── Schemas ─────────────────────────────────────────────────
+  schemas:
+    # ── Enums ──────────────────────────────────────────────────
+    RoleEnum:
+      type: string
+      enum:
+        - ENGINEER
+        - DC
+        - MANAGER
+        - ADMIN
+      description: |
+        - ENGINEER: Can view diagrams they have access to
+        - DC: Document Controller — uploads & manages diagrams
+        - MANAGER: Can view reports
+        - ADMIN: Full system administration
+
+    FileFormatEnum:
+      type: string
+      enum:
+        - PDF
+        - JPEG
+        - PNG
+        - SVG
+        - DWG
+
+    AccessLevelEnum:
+      type: string
+      enum:
+        - VIEW
+        - EDIT
+        - ADMIN
+
+    AccessPolicyEnum:
+      type: string
+      enum:
+        - ALLOW
+        - DENY
+
+    TargetTypeEnum:
+      type: string
+      enum:
+        - USER
+        - DEPARTMENT
+
+    BackupStatusEnum:
+      type: string
+      enum:
+        - RUNNING
+        - SUCCESS
+        - FAILED
+
+    SyncStatusEnum:
+      type: string
+      enum:
+        - SUCCESS
+        - FAILED
+        - NEVER
+
+    # ── Error Schemas ──────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message
+          example: Record not found
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - details
+      properties:
+        error:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Request validation failed
+        details:
+          type: array
+          items:
+            type: object
+            required:
+              - path
+              - message
+            properties:
+              path:
+                type: string
+                description: Dot-separated field path
+                example: departmentId
+              message:
+                type: string
+                description: Validation error message
+                example: Department is required for ENGINEER role
+
+    DeactivationConflictError:
+      type: object
+      required:
+        - error
+        - message
+        - count
+      properties:
+        error:
+          type: string
+          enum:
+            - DEPARTMENT_HAS_ACTIVE_USERS
+            - DEPARTMENT_HAS_ACTIVE_DIAGRAMS
+        message:
+          type: string
+        count:
+          type: integer
+          description: Number of blocking active records
+
+    # ── Pagination ─────────────────────────────────────────────
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Items per page
+          example: 20
+        total:
+          type: integer
+          description: Total matching records
+          example: 156
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+
+    # ── Health ─────────────────────────────────────────────────
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+
+    # ── Department Schemas ─────────────────────────────────────
+    DepartmentBasic:
+      type: object
+      required:
+        - id
+        - nameAr
+        - nameEn
+        - code
+      properties:
+        id:
+          type: string
+          description: Department ID (cuid)
+          example: clx1234567890
+        nameAr:
+          type: string
+          description: Arabic name
+          example: "قسم الهندسة"
+        nameEn:
+          type: string
+          description: English name
+          example: Engineering
+        code:
+          type: string
+          description: Unique uppercase code
+          example: ENG
+
+    DepartmentFull:
+      type: object
+      required:
+        - id
+        - nameAr
+        - nameEn
+        - code
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: clx1234567890
+        nameAr:
+          type: string
+          example: "قسم الهندسة"
+        nameEn:
+          type: string
+          example: Engineering
+        code:
+          type: string
+          example: ENG
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DepartmentStats:
+      type: object
+      required:
+        - id
+        - nameAr
+        - nameEn
+        - code
+        - isActive
+        - activeUserCount
+        - totalUserCount
+        - activeDiagramCount
+        - totalDiagramCount
+      properties:
+        id:
+          type: string
+          example: clx1234567890
+        nameAr:
+          type: string
+          example: "قسم الهندسة"
+        nameEn:
+          type: string
+          example: Engineering
+        code:
+          type: string
+          example: ENG
+        isActive:
+          type: boolean
+          example: true
+        activeUserCount:
+          type: integer
+          description: Active users in this department
+          example: 5
+        totalUserCount:
+          type: integer
+          description: Total users (including inactive) in this department
+          example: 8
+        activeDiagramCount:
+          type: integer
+          description: Active diagrams owned by this department
+          example: 42
+        totalDiagramCount:
+          type: integer
+          description: Total diagrams (including deactivated)
+          example: 50
+
+    DepartmentCreateRequest:
+      type: object
+      required:
+        - nameAr
+        - nameEn
+        - code
+      properties:
+        nameAr:
+          type: string
+          minLength: 2
+          description: Arabic name
+          example: "قسم الهندسة"
+        nameEn:
+          type: string
+          minLength: 2
+          description: English name
+          example: Engineering Department
+        code:
+          type: string
+          minLength: 2
+          maxLength: 10
+          pattern: "^[a-zA-Z0-9_]+$"
+          description: Alphanumeric + underscores only. Stored as UPPERCASE.
+          example: ENG_DEPT
+
+    DepartmentUpdateRequest:
+      type: object
+      properties:
+        nameAr:
+          type: string
+          minLength: 2
+          example: "قسم الهندسة المحدث"
+        nameEn:
+          type: string
+          minLength: 2
+          example: Updated Engineering
+        code:
+          type: string
+          minLength: 2
+          maxLength: 10
+          pattern: "^[a-zA-Z0-9_]+$"
+          example: ENG_V2
+
+    # ── User Schemas ───────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        fullName: { type: string }
+        role: { type: string }
+        departmentId: { type: string }
+
+
+    
+    UserBrief:
+      type: object
+      required:
+        - id
+        - username
+        - fullName
+      properties:
+        id:
+          type: string
+          example: clxUSER123
+        username:
+          type: string
+          example: john.doe
+        fullName:
+          type: string
+          example: John Doe
+
+    UserResponse:
+      type: object
+      required:
+        - id
+        - username
+        - fullName
+        - role
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: clxUSER123
+        username:
+          type: string
+          example: john.doe
+        fullName:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: john@example.com
+        role:
+          $ref: "#/components/schemas/RoleEnum"
+        departmentId:
+          type: string
+          nullable: true
+          example: clx1234567890
+        isActive:
+          type: boolean
+          example: true
+        lastLogin:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        department:
+          allOf:
+            - $ref: "#/components/schemas/DepartmentBasic"
+          nullable: true
+
+    UserEngineerResponse:
+      type: object
+      required:
+        - id
+        - username
+        - fullName
+        - departmentId
+      properties:
+        id:
+          type: string
+          example: clxUSER123
+        username:
+          type: string
+          example: john.doe
+        fullName:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          nullable: true
+        departmentId:
+          type: string
+          example: clx1234567890
+        department:
+          $ref: "#/components/schemas/DepartmentBasic"
+
+    UserPaginatedResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserResponse"
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    UserCreateRequest:
+      type: object
+      required:
+        - username
+        - fullName
+        - role
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9._-]+$"
+          description: Letters, numbers, dots, hyphens, underscores
+          example: john.doe
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: John Doe
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: john@example.com
+        role:
+          $ref: "#/components/schemas/RoleEnum"
+        departmentId:
+          type: string
+          nullable: true
+          description: Required if role is ENGINEER
+          example: clx1234567890
+        password:
+          type: string
+          minLength: 8
+          format: password
+          description: Will be hashed with bcrypt (12 rounds)
+          example: SecureP@ss123
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: John D. Smith
+        email:
+          type: string
+          format: email
+          nullable: true
+        role:
+          $ref: "#/components/schemas/RoleEnum"
+        departmentId:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+
+    PasswordResetRequest:
+      type: object
+      required:
+        - newPassword
+      properties:
+        newPassword:
+          type: string
+          minLength: 8
+          format: password
+          example: NewSecureP@ss456
+
+    # ── Diagram Schemas ────────────────────────────────────────
+    DiagramCreateFormData:
+      type: object
+      required:
+        - title
+        - departmentId
+        - revisionLabel
+        - changeSummary
+        - file
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Main Electrical Panel Layout
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+          example: Single-line diagram for the main panel on floor 2
+        departmentId:
+          type: string
+          example: clx1234567890
+        tags:
+          type: string
+          description: Comma-separated tag list
+          example: electrical,panel,floor-2
+        revisionLabel:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Rev A
+        changeSummary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: Initial release
+        file:
+          type: string
+          format: binary
+          description: "Allowed: .pdf, .jpg, .jpeg, .png, .svg, .dwg"
+
+    DiagramCreateResponse:
+      type: object
+      required:
+        - diagram
+        - version
+      properties:
+        diagram:
+          $ref: "#/components/schemas/DiagramObject"
+        version:
+          $ref: "#/components/schemas/DiagramVersionObject"
+
+    DiagramObject:
+      type: object
+      required:
+        - id
+        - title
+        - departmentId
+        - currentVersionId
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: clxDIAGRAM001
+        title:
+          type: string
+          example: Main Electrical Panel Layout
+        description:
+          type: string
+          nullable: true
+        departmentId:
+          type: string
+          example: clx1234567890
+        currentVersionId:
+          type: string
+          nullable: true
+          example: clxVERSION001
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DiagramSummaryResponse:
+      type: object
+      required:
+        - id
+        - title
+        - departmentId
+        - department
+        - currentVersionId
+        - isActive
+        - createdAt
+        - updatedAt
+        - tags
+        - versionCount
+      properties:
+        id:
+          type: string
+          example: clxDIAGRAM001
+        title:
+          type: string
+          example: Main Electrical Panel Layout
+        description:
+          type: string
+          nullable: true
+        departmentId:
+          type: string
+          example: clx1234567890
+        department:
+          $ref: "#/components/schemas/DepartmentBasic"
+        currentVersionId:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+          example: [electrical, panel, floor-2]
+        versionCount:
+          type: integer
+          example: 3
+        currentVersion:
+          allOf:
+            - $ref: "#/components/schemas/DiagramVersionSummary"
+          nullable: true
+
+    DiagramDetailResponse:
+      description: Same shape as DiagramSummaryResponse (includes currentVersion and versionCount)
+      allOf:
+        - $ref: "#/components/schemas/DiagramSummaryResponse"
+
+    DiagramPaginatedResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagramSummaryResponse"
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    DiagramUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Updated Diagram Title
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        tags:
+          type: string
+          nullable: true
+          description: Comma-separated. Replaces all existing tags. Send empty string to clear.
+          example: electrical,phase-2,reviewed
+
+    # ── Diagram Version Schemas ────────────────────────────────
+    DiagramVersionSummary:
+      type: object
+      required:
+        - id
+        - versionNumber
+        - revisionLabel
+        - changeSummary
+        - fileFormat
+        - fileSizeBytes
+        - originalFilename
+        - uploadedAt
+        - uploadedBy
+      properties:
+        id:
+          type: string
+          example: clxVERSION001
+        versionNumber:
+          type: integer
+          example: 1
+        revisionLabel:
+          type: string
+          example: Rev A
+        changeSummary:
+          type: string
+          example: Initial release
+        fileFormat:
+          $ref: "#/components/schemas/FileFormatEnum"
+        fileSizeBytes:
+          type: string
+          description: BigInt serialized as string
+          example: "1048576"
+        originalFilename:
+          type: string
+          example: electrical-panel-v1.pdf
+        thumbnailPath:
+          type: string
+          nullable: true
+          description: Server-side path to thumbnail (not exposed to client as URL)
+        uploadedAt:
+          type: string
+          format: date-time
+        uploadedBy:
+          $ref: "#/components/schemas/UserBrief"
+
+    DiagramVersionObject:
+      description: Full version record as returned after creation
+      type: object
+      required:
+        - id
+        - diagramId
+        - versionNumber
+        - revisionLabel
+        - changeSummary
+        - filePath
+        - originalFilename
+        - fileFormat
+        - fileSizeBytes
+        - uploadedById
+        - uploadedAt
+      properties:
+        id:
+          type: string
+        diagramId:
+          type: string
+        versionNumber:
+          type: integer
+        revisionLabel:
+          type: string
+        changeSummary:
+          type: string
+        filePath:
+          type: string
+          description: Server-side storage path
+        originalFilename:
+          type: string
+        fileFormat:
+          $ref: "#/components/schemas/FileFormatEnum"
+        fileSizeBytes:
+          type: string
+          description: BigInt serialized as string
+        thumbnailPath:
+          type: string
+          nullable: true
+        uploadedById:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+
+    DiagramVersionResponse:
+      description: Version as returned in list/create responses
+      type: object
+      required:
+        - id
+        - diagramId
+        - versionNumber
+        - revisionLabel
+        - changeSummary
+        - originalFilename
+        - fileFormat
+        - fileSizeBytes
+        - uploadedAt
+        - uploadedBy
+      properties:
+        id:
+          type: string
+          example: clxVERSION003
+        diagramId:
+          type: string
+          example: clxDIAGRAM001
+        versionNumber:
+          type: integer
+          example: 3
+        revisionLabel:
+          type: string
+          example: Rev C
+        changeSummary:
+          type: string
+          example: Updated cable routing
+        filePath:
+          type: string
+        originalFilename:
+          type: string
+          example: panel-v3.pdf
+        fileFormat:
+          $ref: "#/components/schemas/FileFormatEnum"
+        fileSizeBytes:
+          type: string
+          example: "2097152"
+        thumbnailPath:
+          type: string
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+        uploadedById:
+          type: string
+        uploadedBy:
+          $ref: "#/components/schemas/UserBrief"
+
+    DiagramVersionCreateFormData:
+      type: object
+      required:
+        - revisionLabel
+        - changeSummary
+        - file
+      properties:
+        revisionLabel:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Rev C
+        changeSummary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: Updated cable routing per client feedback
+        file:
+          type: string
+          format: binary
+          description: "Allowed: .pdf, .jpg, .jpeg, .png, .svg, .dwg"
+
+    # ── Access Rule Schemas ────────────────────────────────────
+    DiagramAccessRuleResponse:
+      type: object
+      required:
+        - id
+        - diagramId
+        - targetType
+        - targetId
+        - accessLevel
+        - policy
+        - grantedAt
+        - grantedBy
+      properties:
+        id:
+          type: string
+          example: clxRULE001
+        diagramId:
+          type: string
+          example: clxDIAGRAM001
+        targetType:
+          $ref: "#/components/schemas/TargetTypeEnum"
+        targetId:
+          type: string
+          description: User ID or Department ID
+          example: clxUSER123
+        targetName:
+          type: string
+          nullable: true
+          description: Resolved name for display (e.g., "John Doe (john.doe)" or "Engineering (ENG)")
+          example: John Doe (john.doe)
+        accessLevel:
+          $ref: "#/components/schemas/AccessLevelEnum"
+        policy:
+          $ref: "#/components/schemas/AccessPolicyEnum"
+        grantedAt:
+          type: string
+          format: date-time
+        grantedBy:
+          $ref: "#/components/schemas/UserBrief"
+
+    DiagramAccessRuleCreateRequest:
+      type: object
+      required:
+        - targetType
+        - targetId
+        - accessLevel
+        - policy
+      properties:
+        targetType:
+          $ref: "#/components/schemas/TargetTypeEnum"
+        targetId:
+          type: string
+          minLength: 1
+          description: The user ID or department ID to grant/deny access to
+          example: clxUSER123
+        accessLevel:
+          $ref: "#/components/schemas/AccessLevelEnum"
+        policy:
+          $ref: "#/components/schemas/AccessPolicyEnum"
+
+    # ── Report Schemas ─────────────────────────────────────────
+    ReportSummaryResponse:
+      type: object
+      required:
+        - totalActiveDiagrams
+        - totalVersions
+        - uploadsThisMonth
+        - downloadsThisMonth
+        - activeUsersThisMonth
+        - storageUsedBytes
+      properties:
+        totalActiveDiagrams:
+          type: integer
+          description: COUNT of diagrams WHERE isActive=true
+          example: 156
+        totalVersions:
+          type: integer
+          description: COUNT of all diagram versions
+          example: 423
+        uploadsThisMonth:
+          type: integer
+          description: Versions uploaded since first day of current month
+          example: 12
+        downloadsThisMonth:
+          type: integer
+          description: "COUNT of audit_logs WHERE action='DIAGRAM_DOWNLOADED' this month"
+          example: 89
+        activeUsersThisMonth:
+          type: integer
+          description: Distinct users with any audit log entry this month
+          example: 15
+        storageUsedBytes:
+          type: string
+          description: SUM of diagram_version.fileSizeBytes (BigInt as string)
+          example: "1073741824"
+
+    TimeSeriesPoint:
+      type: object
+      required:
+        - period
+        - count
+      properties:
+        period:
+          type: string
+          description: ISO date string for the truncated period
+          example: "2025-01-01T00:00:00.000Z"
+        count:
+          type: integer
+          example: 15
+
+    DiagramDownloadCount:
+      type: object
+      required:
+        - diagramId
+        - title
+        - downloadCount
+      properties:
+        diagramId:
+          type: string
+          example: clxDIAGRAM001
+        title:
+          type: string
+          example: Main Electrical Panel
+        downloadCount:
+          type: integer
+          example: 45
+
+    DepartmentAccessStats:
+      type: object
+      required:
+        - departmentId
+        - nameAr
+        - nameEn
+        - diagramCount
+        - downloadCount
+      properties:
+        departmentId:
+          type: string
+          example: clxDEPT001
+        nameAr:
+          type: string
+          example: "قسم الهندسة"
+        nameEn:
+          type: string
+          example: Engineering
+        diagramCount:
+          type: integer
+          description: Active diagrams in department
+          example: 42
+        downloadCount:
+          type: integer
+          description: Total downloads for department diagrams
+          example: 156
+
+    # ── Admin Schemas ──────────────────────────────────────────
+    ConfigMap:
+      type: object
+      additionalProperties:
+        type: string
+      description: Key-value map of system configuration
+      example:
+        MAX_UPLOAD_SIZE_MB: "50"
+        MAINTENANCE_MODE: "false"
+        SESSION_TIMEOUT_MINUTES: "30"
+
+    AuditLogEntry:
+      type: object
+      required:
+        - id
+        - action
+        - metadata
+        - occurredAt
+      properties:
+        id:
+          type: string
+          example: clxLOG001
+        userId:
+          type: string
+          nullable: true
+          example: clxUSER123
+        action:
+          type: string
+          description: |
+            Action type. Known values include:
+            DEPARTMENT_CREATED, DEPARTMENT_UPDATED, DEPARTMENT_CODE_CHANGED,
+            DEPARTMENT_DEACTIVATED, USER_CREATED, USER_UPDATED, PASSWORD_RESET,
+            DIAGRAM_CREATED, DIAGRAM_UPDATED, DIAGRAM_DEACTIVATED,
+            VERSION_UPLOADED, DIAGRAM_DOWNLOADED, ACCESS_RULE_ADDED,
+            ACCESS_RULE_REMOVED, CONFIG_UPDATED, BACKUP_TRIGGERED,
+            RESTORE_TRIGGERED, RESTORE_COMPLETED, RESTORE_FAILED
+          example: DIAGRAM_CREATED
+        targetType:
+          type: string
+          nullable: true
+          description: "Type of resource affected (e.g., DEPARTMENT, USER, DIAGRAM, BACKUP, SYSTEM)"
+          example: DIAGRAM
+        targetId:
+          type: string
+          nullable: true
+          example: clxDIAGRAM001
+        ipAddress:
+          type: string
+          nullable: true
+          example: 192.168.1.42
+        metadata:
+          type: object
+          description: Arbitrary JSON metadata for the action
+          example:
+            title: Main Electrical Panel
+            versionNumber: 1
+        occurredAt:
+          type: string
+          format: date-time
+        user:
+          allOf:
+            - $ref: "#/components/schemas/UserBrief"
+          nullable: true
+          description: Joined user info (null for system-generated events)
+
+    AuditLogPaginatedResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    # ── Backup Schemas ─────────────────────────────────────────
+    BackupRecordResponse:
+      type: object
+      required:
+        - id
+        - filePath
+        - sizeBytes
+        - status
+        - startedAt
+      properties:
+        id:
+          type: string
+          example: clxBACKUP001
+        filePath:
+          type: string
+          description: Path to the SQL dump file on the server
+          example: /backups/2025-01-15T10-30-00-000Z.sql
+        sizeBytes:
+          type: string
+          description: BigInt serialized as string
+          example: "52428800"
+        status:
+          $ref: "#/components/schemas/BackupStatusEnum"
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        triggeredById:
+          type: string
+          nullable: true
+        triggeredBy:
+          allOf:
+            - $ref: "#/components/schemas/UserBrief"
+          nullable: true
+
+    RestoreRequest:
+      type: object
+      required:
+        - confirmToken
+      properties:
+        confirmToken:
+          type: string
+          enum:
+            - RESTORE
+          description: Must be exactly "RESTORE" to confirm the operation
+          example: RESTORE
+
+    # ── Replication Schemas ────────────────────────────────────
+    ReplicationTargetResponse:
+      type: object
+      description: Replication target (sshKeyPath is excluded for security)
+      required:
+        - id
+        - host
+        - port
+        - label
+        - sshUsername
+        - isActive
+        - lastSyncStatus
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: clxREPL001
+        host:
+          type: string
+          example: 192.168.1.100
+        port:
+          type: integer
+          example: 22
+        label:
+          type: string
+          example: DR Site Alpha
+        sshUsername:
+          type: string
+          example: replicator
+        isActive:
+          type: boolean
+          example: true
+        lastSyncAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastSyncStatus:
+          $ref: "#/components/schemas/SyncStatusEnum"
+        createdAt:
+          type: string
+          format: date-time
+
+    ReplicationTargetFullResponse:
+      description: Full response including sshKeyPath (only returned on creation)
+      allOf:
+        - $ref: "#/components/schemas/ReplicationTargetResponse"
+        - type: object
+          properties:
+            sshKeyPath:
+              type: string
+              example: /home/app/.ssh/dr_alpha_key
+
+    ReplicationTargetCreateRequest:
+      type: object
+      required:
+        - host
+        - label
+        - sshUsername
+        - sshKeyPath
+      properties:
+        host:
+          type: string
+          minLength: 1
+          example: 192.168.1.100
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 22
+          example: 22
+        label:
+          type: string
+          minLength: 1
+          example: DR Site Alpha
+        sshUsername:
+          type: string
+          minLength: 1
+          example: replicator
+        sshKeyPath:
+          type: string
+          minLength: 1
+          example: /home/app/.ssh/dr_alpha_key
+
+    ReplicationTargetUpdateRequest:
+      type: object
+      properties:
+        host:
+          type: string
+          minLength: 1
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        label:
+          type: string
+          minLength: 1
+        sshUsername:
+          type: string
+          minLength: 1
+        sshKeyPath:
+          type: string
+          minLength: 1
+        isActive:
+          type: boolean

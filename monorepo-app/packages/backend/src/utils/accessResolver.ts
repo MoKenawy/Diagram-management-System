@@ -1,18 +1,14 @@
+// src/utils/accessResolver.ts
 import { PrismaClient, TargetType, AccessPolicy, Role } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
-
-export interface AuthUser {
-  id: string;
-  departmentId: string | null;
-  role: Role;
-}
-
-export interface AuthenticatedRequest extends Request {
-  user?: AuthUser;
-}
-
+import { prisma } from '../lib/prisma';
 /**
- * Evaluates if a user has access to a specific diagram using Deny-Override logic.
+ * Deny-Override access resolution for a single diagram.
+ *
+ * Evaluation order (strict):
+ *   1. If ANY DENY rule matches the user or their department → false
+ *   2. If ANY ALLOW rule matches the user or their department → true
+ *   3. Default → false (no matching rule = deny)
  */
 export async function canAccessDiagram(
   prisma: PrismaClient,
@@ -20,127 +16,174 @@ export async function canAccessDiagram(
   departmentId: string | null,
   diagramId: string
 ): Promise<boolean> {
-  // Explicitly type the array so it accepts both USER and DEPARTMENT
-  const targetConditions: { targetType: TargetType; targetId: string }[] = [
-    { targetType: TargetType.USER, targetId: userId },
+  // ── Step 1: Check for any DENY rule ────────────────────────────
+  const denyConditions: Array<{ targetType: TargetType; targetId: string; policy: AccessPolicy }> = [
+    { targetType: 'USER', targetId: userId, policy: 'DENY' },
   ];
 
   if (departmentId) {
-    targetConditions.push({ targetType: TargetType.DEPARTMENT, targetId: departmentId });
+    denyConditions.push({
+      targetType: 'DEPARTMENT',
+      targetId: departmentId,
+      policy: 'DENY',
+    });
   }
 
-  // 1. Check for any DENY rules (Deny wins immediately)
   const denyRule = await prisma.diagramAccess.findFirst({
     where: {
       diagramId,
-      policy: AccessPolicy.DENY,
-      OR: targetConditions,
+      OR: denyConditions,
     },
+    select: { id: true },
   });
 
   if (denyRule) {
     return false;
   }
 
-  // 2. Check for any ALLOW rules
+  // ── Step 2: Check for any ALLOW rule ───────────────────────────
+  const allowConditions: Array<{ targetType: TargetType; targetId: string; policy: AccessPolicy }> = [
+    { targetType: 'USER', targetId: userId, policy: 'ALLOW' },
+  ];
+
+  if (departmentId) {
+    allowConditions.push({
+      targetType: 'DEPARTMENT',
+      targetId: departmentId,
+      policy: 'ALLOW',
+    });
+  }
+
   const allowRule = await prisma.diagramAccess.findFirst({
     where: {
       diagramId,
-      policy: AccessPolicy.ALLOW,
-      OR: targetConditions,
+      OR: allowConditions,
     },
+    select: { id: true },
   });
 
   if (allowRule) {
     return true;
   }
 
-  // 3. Default deny - no matching rule
+  // ── Step 3: Default deny ───────────────────────────────────────
   return false;
 }
 
 /**
- * Returns IDs of all diagrams the user can access.
- * Useful for list/archive queries.
+ * Returns the IDs of every diagram the user is permitted to view.
+ *
+ * Strategy – single raw SQL query:
+ *   SELECT all diagramIds that have at least one ALLOW rule for the
+ *   user/department AND no DENY rule for the user/department.
+ *   This avoids N+1 calls to canAccessDiagram.
  */
 export async function getAccessibleDiagramIds(
   prisma: PrismaClient,
   userId: string,
   departmentId: string | null
 ): Promise<string[]> {
-  // Explicitly type the array so it accepts both USER and DEPARTMENT
-  const targetConditions: { targetType: TargetType; targetId: string }[] = [
-    { targetType: TargetType.USER, targetId: userId },
-  ];
+  // Build the target-match clause fragments once
+  // We need diagrams where:
+  //   - There exists an ALLOW rule matching user or dept
+  //   - There does NOT exist a DENY rule matching user or dept
 
   if (departmentId) {
-    targetConditions.push({ targetType: TargetType.DEPARTMENT, targetId: departmentId });
+    const rows = await prisma.$queryRaw<Array<{ diagramId: string }>>`
+      SELECT DISTINCT a."diagramId"
+      FROM "DiagramAccess" a
+      WHERE a."policy" = 'ALLOW'::"AccessPolicy"
+        AND (
+          (a."targetType" = 'USER'::"TargetType"       AND a."targetId" = ${userId})
+          OR
+          (a."targetType" = 'DEPARTMENT'::"TargetType"  AND a."targetId" = ${departmentId})
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM "DiagramAccess" d
+          WHERE d."diagramId" = a."diagramId"
+            AND d."policy" = 'DENY'::"AccessPolicy"
+            AND (
+              (d."targetType" = 'USER'::"TargetType"       AND d."targetId" = ${userId})
+              OR
+              (d."targetType" = 'DEPARTMENT'::"TargetType"  AND d."targetId" = ${departmentId})
+            )
+        )
+    `;
+    return rows.map((r) => r.diagramId);
   }
 
-  // Fetch all access rules relevant to this user/department
-  const accessRules = await prisma.diagramAccess.findMany({
-    where: {
-      OR: targetConditions,
-    },
-    select: {
-      diagramId: true,
-      policy: true,
-    },
-  });
-
-  const allowSet = new Set<string>();
-  const denySet = new Set<string>();
-
-  // Process rules
-  for (const rule of accessRules) {
-    if (rule.policy === AccessPolicy.DENY) {
-      denySet.add(rule.diagramId);
-    } else if (rule.policy === AccessPolicy.ALLOW) {
-      allowSet.add(rule.diagramId);
-    }
-  }
-
-  // Subtract DENY targets from ALLOW targets
-  return Array.from(allowSet).filter((id) => !denySet.has(id));
+  // User has no department – only match USER-level rules
+  const rows = await prisma.$queryRaw<Array<{ diagramId: string }>>`
+    SELECT DISTINCT a."diagramId"
+    FROM "DiagramAccess" a
+    WHERE a."policy" = 'ALLOW'::"AccessPolicy"
+      AND a."targetType" = 'USER'::"TargetType"
+      AND a."targetId" = ${userId}
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "DiagramAccess" d
+        WHERE d."diagramId" = a."diagramId"
+          AND d."policy" = 'DENY'::"AccessPolicy"
+          AND d."targetType" = 'USER'::"TargetType"
+          AND d."targetId" = ${userId}
+      )
+  `;
+  return rows.map((r) => r.diagramId);
 }
 
 /**
- * Express middleware factory to check diagram access.
+ * Express middleware factory.
+ *
+ * DC and ADMIN roles bypass the check entirely (they see all diagrams).
+ * For everyone else, canAccessDiagram is evaluated; 403 on denial.
+ *
+ * @param paramName  The name of the req.params key holding the diagram ID
  */
-export function checkDiagramAccess(prisma: PrismaClient, paramName: string = 'id') {
-  return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+export function checkDiagramAccess(paramName: string = 'id') {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = req.user;
-      
-      if (!user) {
-        res.status(401).json({ error: 'Unauthorized: User context missing' });
+      if (!req.user) {
+        res.status(401).json({ error: 'UNAUTHORIZED', message: 'Authentication required' });
         return;
       }
 
-      // ADMIN and DC bypass the access check entirely
-      if (user.role === Role.ADMIN || user.role === Role.DC) {
-        return next();
-      }
-
-      const rawDiagramId = req.params[paramName];
-      
-      // Handle missing or array-based parameter types cleanly for TypeScript
-      if (!rawDiagramId || typeof rawDiagramId !== 'string') {
-        res.status(400).json({ error: 'Bad Request: Valid Diagram ID is required' });
+      // DC and ADMIN bypass – they can see every diagram
+      const bypassRoles: Role[] = ['DC', 'ADMIN'];
+      if (bypassRoles.includes(req.user.role)) {
+        next();
         return;
       }
 
-      const hasAccess = await canAccessDiagram(prisma, user.id, user.departmentId, rawDiagramId);
+      const diagramId = Array.isArray(req.params[paramName]) ? req.params[paramName][0] : req.params[paramName];
+      if (!diagramId) {
+        res.status(400).json({
+          error: 'BAD_REQUEST',
+          message: `Missing route parameter: ${paramName}`,
+        });
+        return;
+      }
 
-      if (!hasAccess) {
-        res.status(403).json({ error: 'Forbidden: You do not have access to this diagram' });
+      // Lazy-import prisma to avoid circular deps
+
+      const allowed = await canAccessDiagram(
+        prisma,
+        req.user.id,
+        req.user.departmentId,
+        diagramId
+      );
+
+      if (!allowed) {
+        res.status(403).json({
+          error: 'FORBIDDEN',
+          message: 'You do not have access to this diagram',
+        });
         return;
       }
 
       next();
-    } catch (error) {
-      console.error('Access Resolution Error:', error);
-      res.status(500).json({ error: 'Internal Server Error during access resolution' });
+    } catch (err) {
+      next(err);
     }
   };
 }
