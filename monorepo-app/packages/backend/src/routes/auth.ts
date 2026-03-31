@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { router } from '../lib/prisma';
+import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/authenticate';
@@ -11,6 +11,7 @@ import {
   verifyRefreshToken 
 } from '../utils/auth';
 
+const authRouter = Router({ mergeParams: true });
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -18,7 +19,7 @@ const loginSchema = z.object({
 });
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response) => {
+authRouter.post('/login', async (req: Request, res: Response) => {
   const result = loginSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ errors: result.error.flatten() });
@@ -96,7 +97,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', authenticate, async (req: Request, res: Response) => {
+authRouter.post('/logout', authenticate, async (req: Request, res: Response) => {
   await logAction({
     userId: req.user!.id,
     action: 'LOGOUT',
@@ -108,7 +109,7 @@ router.post('/logout', authenticate, async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', async (req: Request, res: Response) => {
+authRouter.post('/refresh', async (req: Request, res: Response) => {
   const token = req.cookies?.refreshToken;
   if (!token) {
     res.status(401).json({ message: 'Session expired' });
@@ -129,7 +130,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authenticate, async (req: Request, res: Response) => {
+authRouter.get('/me', authenticate, async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
     select: {
@@ -145,4 +146,4 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
   res.json(user);
 });
 
-export default router;
+export default authRouter;

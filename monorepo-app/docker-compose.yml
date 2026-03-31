@@ -31,8 +31,8 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     volumes:
-      - ./storage/uploads:/app/packages/backend/uploads
-      - ./storage/backups:/app/packages/backend/backups
+      - ./storage/uploads:/app/uploads
+      - ./storage/backups:/app/backups
 
   frontend:
     build:

@@ -1,18 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/auth';
-import { Role } from '@prisma/client';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        role: Role;
-        departmentId: string | null;
-      };
-    }
-  }
-}
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
   let token: string | undefined;
@@ -36,6 +24,11 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       role: decoded.role,
       departmentId: decoded.departmentId,
     };
+
+    req.log = req.log.child({
+      userId: req.user.id,
+      role: req.user.role,
+    });
     next();
   } catch (err) {
     res.status(401).json({ message: 'Unauthorized: Invalid or expired token' });
