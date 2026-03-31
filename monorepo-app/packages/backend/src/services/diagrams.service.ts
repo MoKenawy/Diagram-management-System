@@ -1,6 +1,6 @@
 // src/services/diagrams.service.ts
 import { prisma } from '../lib/prisma';
-import { Prisma, FileFormat } from '@prisma/client';
+import { Prisma, FileFormat, PrismaClient } from '@prisma/client';
 import {
   CreateDiagramInput,
   UpdateDiagramInput,
@@ -9,7 +9,41 @@ import {
 import path from 'path';
 import { extensionToFileFormat } from '../utils/storage';
 
-// ─── Create Diagram + Version 1 (transactional) ─────────────────
+// ─── Typed transaction client ────────────────────────────────────
+
+type TransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
+
+// ─── Reusable select objects ─────────────────────────────────────
+
+const DEPARTMENT_SELECT = {
+  id: true,
+  nameAr: true,
+  nameEn: true,
+  code: true,
+} as const satisfies Prisma.DepartmentSelect;
+
+const UPLOADER_SELECT = {
+  id: true,
+  username: true,
+  fullName: true,
+} as const satisfies Prisma.UserSelect;
+
+const TAG_SELECT = {
+  id: true,
+  tag: true,
+} as const satisfies Prisma.DiagramTagSelect;
+
+const DIAGRAM_INCLUDE = {
+  department: { select: DEPARTMENT_SELECT },
+  tags: { select: TAG_SELECT },
+  _count: { select: { versions: true } },
+} as const satisfies Prisma.DiagramInclude;
+
+const VERSION_INCLUDE = {
+  uploadedBy: { select: UPLOADER_SELECT },
+} as const satisfies Prisma.DiagramVersionInclude;
+
+// ─── Create Diagram + Version 1 ─────────────────────────────────
 
 export interface CreateDiagramData extends CreateDiagramInput {
   file: Express.Multer.File;
@@ -31,8 +65,7 @@ export async function createDiagram(data: CreateDiagramData) {
   const ext = path.extname(file.originalname).toLowerCase();
   const fileFormat = extensionToFileFormat(ext) as FileFormat;
 
-  const result = await prisma.$transaction(async (tx) => {
-    // 1. Create diagram
+  const result = await prisma.$transaction(async (tx: TransactionClient) => {
     const diagram = await tx.diagram.create({
       data: {
         title,
@@ -42,7 +75,6 @@ export async function createDiagram(data: CreateDiagramData) {
       },
     });
 
-    // 2. Create version 1
     const version = await tx.diagramVersion.create({
       data: {
         diagramId: diagram.id,
@@ -57,20 +89,18 @@ export async function createDiagram(data: CreateDiagramData) {
       },
     });
 
-    // 3. Update diagram with currentVersionId
     const updatedDiagram = await tx.diagram.update({
       where: { id: diagram.id },
       data: { currentVersionId: version.id },
     });
 
-    // 4. Create tags
     if (tags && tags.length > 0) {
-      await tx.diagramTag.createMany({
-        data: tags.map((tag: string) => ({
-          diagramId: diagram.id,
-          tag,
-        })),
-      });
+      const tagData: Prisma.DiagramTagCreateManyInput[] = tags.map((tag: string) => ({
+        diagramId: diagram.id,
+        tag,
+      }));
+
+      await tx.diagramTag.createMany({ data: tagData });
     }
 
     return { diagram: updatedDiagram, version };
@@ -83,7 +113,7 @@ export async function createDiagram(data: CreateDiagramData) {
 
 export async function listDiagrams(
   query: ListDiagramsQuery,
-  accessibleIds?: string[] // undefined = all visible (DC/ADMIN/MANAGER)
+  accessibleIds?: string[]
 ) {
   const { page, limit, search, fileFormat, departmentId, uploadedFrom, uploadedTo } = query;
   const skip = (page - 1) * limit;
@@ -92,64 +122,41 @@ export async function listDiagrams(
     isActive: true,
   };
 
-  // Engineer access restriction
   if (accessibleIds !== undefined) {
     if (accessibleIds.length === 0) {
-      // No access to any diagram
       return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
     }
     where.id = { in: accessibleIds };
   }
 
-  // Department filter
   if (departmentId) {
     where.departmentId = departmentId;
   }
 
-  // Search: title or tag match
   if (search) {
     where.OR = [
       { title: { contains: search, mode: 'insensitive' } },
-      {
-        tags: {
-          some: { tag: { contains: search, mode: 'insensitive' } },
-        },
-      },
+      { tags: { some: { tag: { contains: search, mode: 'insensitive' } } } },
     ];
   }
 
-  // File format filter: check current version's format
-  // We need to handle this via a sub-relation filter
   if (fileFormat) {
     where.versions = {
       some: { fileFormat: fileFormat as FileFormat },
     };
   }
 
-  // Upload date range
   if (uploadedFrom || uploadedTo) {
-    where.createdAt = {};
-    if (uploadedFrom) where.createdAt.gte = new Date(uploadedFrom);
-    if (uploadedTo) where.createdAt.lte = new Date(uploadedTo);
+    const dateFilter: Prisma.DateTimeFilter = {};
+    if (uploadedFrom) dateFilter.gte = new Date(uploadedFrom);
+    if (uploadedTo) dateFilter.lte = new Date(uploadedTo);
+    where.createdAt = dateFilter;
   }
 
   const [diagrams, total] = await Promise.all([
     prisma.diagram.findMany({
       where,
-      include: {
-        department: {
-          select: { id: true, nameAr: true, nameEn: true, code: true },
-        },
-        tags: {
-          select: { id: true, tag: true },
-        },
-        // We need to fetch the current version separately since
-        // currentVersionId is a plain string, not a relation.
-        // We'll do a follow-up query.
-        _count: {
-          select: { versions: true },
-        },
-      },
+      include: DIAGRAM_INCLUDE,
       skip,
       take: limit,
       orderBy: { updatedAt: 'desc' },
@@ -157,7 +164,6 @@ export async function listDiagrams(
     prisma.diagram.count({ where }),
   ]);
 
-  // Fetch current versions in batch
   const currentVersionIds = diagrams
     .map((d) => d.currentVersionId)
     .filter((id): id is string => id !== null);
@@ -166,11 +172,7 @@ export async function listDiagrams(
     currentVersionIds.length > 0
       ? await prisma.diagramVersion.findMany({
           where: { id: { in: currentVersionIds } },
-          include: {
-            uploadedBy: {
-              select: { id: true, username: true, fullName: true },
-            },
-          },
+          include: VERSION_INCLUDE,
         })
       : [];
 
@@ -226,31 +228,16 @@ export async function listDiagrams(
 export async function getDiagramById(id: string) {
   const diagram = await prisma.diagram.findUnique({
     where: { id },
-    include: {
-      department: {
-        select: { id: true, nameAr: true, nameEn: true, code: true },
-      },
-      tags: {
-        select: { id: true, tag: true },
-      },
-      _count: {
-        select: { versions: true },
-      },
-    },
+    include: DIAGRAM_INCLUDE,
   });
 
   if (!diagram) return null;
 
-  // Fetch current version
   let currentVersion = null;
   if (diagram.currentVersionId) {
     currentVersion = await prisma.diagramVersion.findUnique({
       where: { id: diagram.currentVersionId },
-      include: {
-        uploadedBy: {
-          select: { id: true, username: true, fullName: true },
-        },
-      },
+      include: VERSION_INCLUDE,
     });
   }
 
@@ -283,16 +270,12 @@ export async function getDiagramById(id: string) {
   };
 }
 
-// ─── Update Diagram metadata ────────────────────────────────────
+// ─── Update Diagram ──────────────────────────────────────────────
 
-export async function updateDiagram(
-  id: string,
-  data: UpdateDiagramInput
-) {
+export async function updateDiagram(id: string, data: UpdateDiagramInput) {
   const { tags, ...updateFields } = data;
 
-  return prisma.$transaction(async (tx) => {
-    // Update core fields
+  return prisma.$transaction(async (tx: TransactionClient) => {
     const updateData: Prisma.DiagramUpdateInput = {};
     if (updateFields.title !== undefined) updateData.title = updateFields.title;
     if (updateFields.description !== undefined) updateData.description = updateFields.description;
@@ -304,41 +287,27 @@ export async function updateDiagram(
       });
     }
 
-    // Replace tags if provided
     if (tags !== undefined) {
-      // Delete old tags
       await tx.diagramTag.deleteMany({ where: { diagramId: id } });
 
-      // Insert new tags
       if (tags.length > 0) {
-        await tx.diagramTag.createMany({
-          data: tags.map((tag: string) => ({
-            diagramId: id,
-            tag,
-          })),
-        });
+        const tagData: Prisma.DiagramTagCreateManyInput[] = tags.map((tag: string) => ({
+          diagramId: id,
+          tag,
+        }));
+
+        await tx.diagramTag.createMany({ data: tagData });
       }
     }
 
-    return getDiagramByIdInternal(tx, id);
-  });
-}
-
-// Internal helper that works inside a transaction
-async function getDiagramByIdInternal(tx: Prisma.TransactionClient, id: string) {
-  const diagram = await tx.diagram.findUnique({
-    where: { id },
-    include: {
-      department: {
-        select: { id: true, nameAr: true, nameEn: true, code: true },
+    return tx.diagram.findUnique({
+      where: { id },
+      include: {
+        department: { select: DEPARTMENT_SELECT },
+        tags: { select: TAG_SELECT },
       },
-      tags: {
-        select: { id: true, tag: true },
-      },
-    },
+    });
   });
-
-  return diagram;
 }
 
 // ─── Soft-delete Diagram ─────────────────────────────────────────
@@ -355,11 +324,7 @@ export async function deactivateDiagram(id: string) {
 export async function getVersions(diagramId: string) {
   return prisma.diagramVersion.findMany({
     where: { diagramId },
-    include: {
-      uploadedBy: {
-        select: { id: true, username: true, fullName: true },
-      },
-    },
+    include: VERSION_INCLUDE,
     orderBy: { versionNumber: 'asc' },
   });
 }
@@ -378,8 +343,7 @@ export async function createVersion(data: CreateVersionData) {
   const ext = path.extname(file.originalname).toLowerCase();
   const fileFormat = extensionToFileFormat(ext) as FileFormat;
 
-  return prisma.$transaction(async (tx) => {
-    // Get next version number
+  return prisma.$transaction(async (tx: TransactionClient) => {
     const maxVersion = await tx.diagramVersion.aggregate({
       where: { diagramId },
       _max: { versionNumber: true },
@@ -387,7 +351,6 @@ export async function createVersion(data: CreateVersionData) {
 
     const nextVersionNumber = (maxVersion._max.versionNumber ?? 0) + 1;
 
-    // Create version
     const version = await tx.diagramVersion.create({
       data: {
         diagramId,
@@ -400,14 +363,9 @@ export async function createVersion(data: CreateVersionData) {
         fileSizeBytes: BigInt(file.size),
         uploadedById,
       },
-      include: {
-        uploadedBy: {
-          select: { id: true, username: true, fullName: true },
-        },
-      },
+      include: VERSION_INCLUDE,
     });
 
-    // Update diagram's currentVersionId
     await tx.diagram.update({
       where: { id: diagramId },
       data: { currentVersionId: version.id },
@@ -420,11 +378,7 @@ export async function createVersion(data: CreateVersionData) {
 export async function getVersionById(versionId: string) {
   return prisma.diagramVersion.findUnique({
     where: { id: versionId },
-    include: {
-      uploadedBy: {
-        select: { id: true, username: true, fullName: true },
-      },
-    },
+    include: VERSION_INCLUDE,
   });
 }
 
@@ -434,14 +388,11 @@ export async function getAccessRules(diagramId: string) {
   const rules = await prisma.diagramAccess.findMany({
     where: { diagramId },
     include: {
-      grantedBy: {
-        select: { id: true, username: true, fullName: true },
-      },
+      grantedBy: { select: UPLOADER_SELECT },
     },
     orderBy: { grantedAt: 'desc' },
   });
 
-  // For each rule, resolve the target name (user or department)
   const enriched = await Promise.all(
     rules.map(async (rule) => {
       let targetName: string | null = null;
@@ -483,14 +434,14 @@ export async function checkDuplicateAccessRule(
   targetId: string,
   policy: string
 ) {
-  return prisma.diagramAccess.findFirst({
-    where: {
-      diagramId,
-      targetType: targetType as any,
-      targetId,
-      policy: policy as any,
-    },
-  });
+  const where: Prisma.DiagramAccessWhereInput = {
+    diagramId,
+    targetType: targetType as Prisma.EnumTargetTypeFilter['equals'],
+    targetId,
+    policy: policy as Prisma.EnumAccessPolicyFilter['equals'],
+  };
+
+  return prisma.diagramAccess.findFirst({ where });
 }
 
 export async function createAccessRule(data: {
@@ -501,25 +452,24 @@ export async function createAccessRule(data: {
   policy: string;
   grantedById: string;
 }) {
+  const createData: Prisma.DiagramAccessCreateInput = {
+    diagram: { connect: { id: data.diagramId } },
+    targetType: data.targetType as 'USER' | 'DEPARTMENT',
+    targetId: data.targetId,
+    accessLevel: data.accessLevel as 'VIEW' | 'EDIT' | 'ADMIN',
+    policy: data.policy as 'ALLOW' | 'DENY',
+    grantedBy: { connect: { id: data.grantedById } },
+  };
+
   return prisma.diagramAccess.create({
-    data: {
-      diagramId: data.diagramId,
-      targetType: data.targetType as any,
-      targetId: data.targetId,
-      accessLevel: data.accessLevel as any,
-      policy: data.policy as any,
-      grantedById: data.grantedById,
-    },
+    data: createData,
     include: {
-      grantedBy: {
-        select: { id: true, username: true, fullName: true },
-      },
+      grantedBy: { select: UPLOADER_SELECT },
     },
   });
 }
 
 export async function deleteAccessRule(ruleId: string, diagramId: string) {
-  // Ensure the rule belongs to the specified diagram
   const rule = await prisma.diagramAccess.findFirst({
     where: { id: ruleId, diagramId },
   });

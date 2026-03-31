@@ -51,29 +51,41 @@ app.get('/api/health', (_req, res) => {
 });
 
 
-app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  req.log?.error({ err }, 'Unhandled error');
+// ─── Global Error Handler ────────────────────────────────────────
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    req.log?.error({ err }, 'Unhandled error');
 
-  if ((err as any).code === 'P2025') {
-    res.status(404).json({ error: 'NOT_FOUND', message: 'Record not found' });
-    return;
-  }
+    if ((err as any).code === 'P2025') {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Record not found' });
+      return;
+    }
 
-  if ((err as any).code === 'P2002') {
-    const target = (err as any).meta?.target;
-    res.status(409).json({
-      error: 'DUPLICATE',
-      message: `A record with this ${target?.join(', ') || 'value'} already exists`,
+    if ((err as any).code === 'P2002') {
+      const target = (err as any).meta?.target;
+      res.status(409).json({
+        error: 'DUPLICATE',
+        message: `A record with this ${target?.join(', ') || 'value'} already exists`,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      error: 'INTERNAL_SERVER_ERROR',
+      message:
+        process.env.NODE_ENV === 'production'
+          ? 'An unexpected error occurred'
+          : err.message,
     });
-    return;
   }
+);
 
-  res.status(500).json({
-    error: 'INTERNAL_SERVER_ERROR',
-    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message,
-  });
-});
-
+// ─── Process-level Error Handlers ────────────────────────────────
 process.on('unhandledRejection', (reason) => {
   logger.error({ reason }, 'Unhandled promise rejection');
 });
@@ -83,9 +95,14 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
+// ─── Start ───────────────────────────────────────────────────────
 app.listen(PORT, () => {
   logger.info(`Backend running on http://localhost:${PORT}`);
-  if (process.env.DISABLE_WORKERS !== 'true') startAllWorkers();
+  logger.info(`Swagger docs at http://localhost:${PORT}/api/docs`);
+
+  if (process.env.DISABLE_WORKERS !== 'true') {
+    startAllWorkers();
+  }
 });
 
 export default app;

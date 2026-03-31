@@ -1,11 +1,10 @@
-import { Queue } from 'bullmq';
 // src/controllers/admin.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import * as adminService from '../services/admin.service';
 import { logAction, getClientIp } from '../services/audit.service';
 import { backupQueue, restoreQueue, replicationQueue } from '../queues/queue';
 
-// ----- Config -----
+// ─── Config ──────────────────────────────────────────────────────
 
 export async function getConfig(req: Request, res: Response, next: NextFunction) {
   try {
@@ -18,7 +17,7 @@ export async function getConfig(req: Request, res: Response, next: NextFunction)
 
 export async function updateConfig(req: Request, res: Response, next: NextFunction) {
   try {
-    const data = req.body;
+    const data = req.validatedBody;
 
     await adminService.upsertConfig(data, req.user!.id);
 
@@ -37,23 +36,24 @@ export async function updateConfig(req: Request, res: Response, next: NextFuncti
   }
 }
 
-// ----- Audit Logs -----
+// ─── Audit Logs ──────────────────────────────────────────────────
 
 export async function getAuditLogs(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = await adminService.getAuditLogs(req.query as any);
+    const query = Array.isArray(req.validatedQuery) ? req.validatedQuery[0] : req.validatedQuery;
+    
+    const result = await adminService.getAuditLogs(query);
     res.json(result);
   } catch (err) {
     next(err);
   }
 }
 
-// ----- Backups -----
+// ─── Backups ─────────────────────────────────────────────────────
 
 export async function getBackups(req: Request, res: Response, next: NextFunction) {
   try {
     const backups = await adminService.getBackups();
-    // Convert BigInt to string for JSON serialization
     const serialized = backups.map((b) => ({
       ...b,
       sizeBytes: b.sizeBytes.toString(),
@@ -68,10 +68,7 @@ export async function createBackup(req: Request, res: Response, next: NextFuncti
   try {
     const record = await adminService.createBackupRecord(req.user!.id);
 
-    // Enqueue backup job
-    await backupQueue.add('backup', {
-      backupRecordId: record.id,
-    });
+    await backupQueue.add('backup', { backupRecordId: record.id });
 
     await logAction({
       userId: req.user!.id,
@@ -92,7 +89,7 @@ export async function restoreBackup(req: Request, res: Response, next: NextFunct
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-    // Verify backup exists
+
     const backup = await adminService.getBackupById(id);
     if (!backup) {
       res.status(404).json({ error: 'NOT_FOUND', message: 'Backup record not found' });
@@ -107,10 +104,7 @@ export async function restoreBackup(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // Enqueue restore job
-    await restoreQueue.add('restore', {
-      backupRecordId: id,
-    });
+    await restoreQueue.add('restore', { backupRecordId: id });
 
     await logAction({
       userId: req.user!.id,
@@ -127,7 +121,7 @@ export async function restoreBackup(req: Request, res: Response, next: NextFunct
   }
 }
 
-// ----- Replication -----
+// ─── Replication ─────────────────────────────────────────────────
 
 export async function getReplicationTargets(req: Request, res: Response, next: NextFunction) {
   try {
@@ -140,7 +134,11 @@ export async function getReplicationTargets(req: Request, res: Response, next: N
 
 export async function createReplicationTarget(req: Request, res: Response, next: NextFunction) {
   try {
-    const target = await adminService.createReplicationTarget(req.body);
+    
+    const validatedBody = Array.isArray(req.validatedBody) ? req.validatedBody[0] : req.validatedBody;
+    const target = await adminService.createReplicationTarget(validatedBody);
+
+
     res.status(201).json(target);
   } catch (err) {
     next(err);
@@ -158,8 +156,7 @@ export async function updateReplicationTarget(req: Request, res: Response, next:
       return;
     }
 
-    const updated = await adminService.updateReplicationTarget(id, req.body);
-    // Exclude sshKeyPath from response
+    const updated = await adminService.updateReplicationTarget(id, req.validatedBody);
     const { sshKeyPath, ...response } = updated;
     res.json(response);
   } catch (err) {

@@ -55,7 +55,13 @@ export const usersQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+// NEW: Confirm deletion schema
+export const deleteUserSchema = z.object({
+  confirmUsername: z.string().min(1, 'You must confirm the username to delete'),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type UsersQueryInput = z.infer<typeof usersQuerySchema>;
+export type DeleteUserInput = z.infer<typeof deleteUserSchema>;

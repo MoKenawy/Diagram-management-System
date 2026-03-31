@@ -601,6 +601,222 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+    # Add under paths: section
+
+  /api/users/{id}/deactivate:
+    patch:
+      tags: [Users]
+      summary: Deactivate user
+      description: |
+        Admin only. Sets isActive=false.
+        Guards:
+        - Cannot deactivate yourself
+        - Returns 409 if user is already inactive
+      operationId: deactivateUser
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      responses:
+        "200":
+          description: User deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Cannot deactivate yourself
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: FORBIDDEN
+                message: You cannot deactivate your own account
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: User already inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: ALREADY_INACTIVE
+                message: User is already deactivated
+
+  /api/users/{id}/activate:
+    patch:
+      tags: [Users]
+      summary: Activate user
+      description: |
+        Admin only. Sets isActive=true, resets failedLoginAttempts and lockedUntil.
+        Returns 409 if user is already active.
+      operationId: activateUser
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      responses:
+        "200":
+          description: User activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: User already active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: ALREADY_ACTIVE
+                message: User is already active
+
+  /api/users/{id}/deletion-impact:
+    get:
+      tags: [Users]
+      summary: Check user deletion impact
+      description: |
+        Admin only. Returns reference counts to help admins decide
+        whether to delete or deactivate a user.
+      operationId: getUserDeletionImpact
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      responses:
+        "200":
+          description: Deletion impact assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDeletionImpactResponse"
+              example:
+                user:
+                  id: clxUSER123
+                  username: john.doe
+                  fullName: John Doe
+                  role: ENGINEER
+                  isActive: true
+                impact:
+                  uploadedVersionCount: 12
+                  grantedAccessCount: 3
+                  auditLogCount: 45
+                  triggeredBackupCount: 0
+                  hasReferences: true
+                  canDelete: false
+                  recommendation: "This user has existing references. Use deactivation instead of deletion."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/users/{id}:
+    patch:
+      tags: [Users]
+      summary: Update user
+      operationId: updateUser
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Users]
+      summary: Delete user (hard delete)
+      description: |
+        Admin only. Permanently deletes a user.
+
+        Guards (all must pass):
+        1. Cannot delete yourself
+        2. Must confirm by providing the exact username in the request body
+        3. User must have no references (uploaded versions, granted access rules,
+           audit logs, triggered backups). If references exist, returns 409
+           recommending deactivation instead.
+
+        Use GET /api/users/:id/deletion-impact first to check.
+      operationId: deleteUser
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteUserRequest"
+            example:
+              confirmUsername: john.doe
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteUserResponse"
+              example:
+                message: User has been permanently deleted
+                deletedUser:
+                  id: clxUSER123
+                  username: john.doe
+                  fullName: John Doe
+        "400":
+          description: Username confirmation mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: USERNAME_MISMATCH
+                message: 'Confirmation username does not match. Expected "john.doe"'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Cannot delete yourself
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: FORBIDDEN
+                message: You cannot delete your own account
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: User has references and cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: USER_HAS_REFERENCES
+                message: "Cannot delete: user has 12 uploaded version(s), 3 granted access rule(s), 45 audit log(s). Deactivate the user instead."
+
+
   # ─── Diagrams ────────────────────────────────────────────────
   /api/diagrams:
     get:
@@ -814,6 +1030,40 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /api/departments/{id}/activate:
+    patch:
+      tags: [Departments]
+      summary: Activate department
+      description: |
+        Admin only. Sets isActive=true.
+        Returns 409 if department is already active.
+      operationId: activateDepartment
+      parameters:
+        - $ref: "#/components/parameters/DepartmentIdParam"
+      responses:
+        "200":
+          description: Department activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentFull"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Department already active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: ALREADY_ACTIVE
+                message: Department is already active
+
 
   # ─── Versions ────────────────────────────────────────────────
   /api/diagrams/{id}/versions:
@@ -2258,6 +2508,98 @@ components:
           minLength: 8
           format: password
           example: NewSecureP@ss456
+
+    DeleteUserRequest:
+      type: object
+      required:
+        - confirmUsername
+      properties:
+        confirmUsername:
+          type: string
+          minLength: 1
+          description: Must match the username of the user being deleted
+          example: john.doe
+
+    DeleteUserResponse:
+      type: object
+      required:
+        - message
+        - deletedUser
+      properties:
+        message:
+          type: string
+          example: User has been permanently deleted
+        deletedUser:
+          type: object
+          required:
+            - id
+            - username
+            - fullName
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+            fullName:
+              type: string
+
+    UserDeletionImpactResponse:
+      type: object
+      required:
+        - user
+        - impact
+      properties:
+        user:
+          type: object
+          required:
+            - id
+            - username
+            - fullName
+            - role
+            - isActive
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+            fullName:
+              type: string
+            role:
+              $ref: "#/components/schemas/RoleEnum"
+            isActive:
+              type: boolean
+        impact:
+          type: object
+          required:
+            - uploadedVersionCount
+            - grantedAccessCount
+            - auditLogCount
+            - triggeredBackupCount
+            - hasReferences
+            - canDelete
+            - recommendation
+          properties:
+            uploadedVersionCount:
+              type: integer
+              description: Number of diagram versions uploaded by this user
+            grantedAccessCount:
+              type: integer
+              description: Number of access rules granted by this user
+            auditLogCount:
+              type: integer
+              description: Number of audit log entries for this user
+            triggeredBackupCount:
+              type: integer
+              description: Number of backups triggered by this user
+            hasReferences:
+              type: boolean
+              description: Whether any references exist
+            canDelete:
+              type: boolean
+              description: Whether the user can be safely hard-deleted
+            recommendation:
+              type: string
+              description: Human-readable recommendation
 
     # ── Diagram Schemas ────────────────────────────────────────
     DiagramCreateFormData:

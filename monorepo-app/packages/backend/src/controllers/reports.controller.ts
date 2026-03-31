@@ -4,7 +4,7 @@ import * as reportsService from '../services/reports.service';
 
 export async function getSummary(req: Request, res: Response, next: NextFunction) {
   try {
-    const { from, to } = req.query as { from?: string; to?: string };
+    const { from, to } = req.validatedQuery;
     const summary = await reportsService.getSummary({ from, to });
     res.json(summary);
   } catch (err) {
@@ -14,12 +14,11 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
 
 export async function getUploadsOverTime(req: Request, res: Response, next: NextFunction) {
   try {
-    const { from, to, granularity } = req.query as {
-      from?: string;
-      to?: string;
-      granularity?: 'day' | 'week' | 'month';
-    };
-    const data = await reportsService.getUploadsOverTime({ from, to }, granularity || 'month');
+    const { from, to, granularity } = req.validatedQuery;
+    const data = await reportsService.getUploadsOverTime(
+      { from, to },
+      granularity || 'month'
+    );
     res.json(data);
   } catch (err) {
     next(err);
@@ -28,7 +27,7 @@ export async function getUploadsOverTime(req: Request, res: Response, next: Next
 
 export async function getDownloadsByDiagram(req: Request, res: Response, next: NextFunction) {
   try {
-    const { from, to } = req.query as { from?: string; to?: string };
+    const { from, to } = req.validatedQuery;
     const data = await reportsService.getDownloadsByDiagram({ from, to });
     res.json(data);
   } catch (err) {
@@ -38,7 +37,7 @@ export async function getDownloadsByDiagram(req: Request, res: Response, next: N
 
 export async function getAccessByDepartment(req: Request, res: Response, next: NextFunction) {
   try {
-    const { from, to } = req.query as { from?: string; to?: string };
+    const { from, to } = req.validatedQuery;
     const data = await reportsService.getAccessByDepartment({ from, to });
     res.json(data);
   } catch (err) {
@@ -48,11 +47,7 @@ export async function getAccessByDepartment(req: Request, res: Response, next: N
 
 export async function exportReport(req: Request, res: Response, next: NextFunction) {
   try {
-    const { from, to, format } = req.query as {
-      from?: string;
-      to?: string;
-      format: 'pdf' | 'excel';
-    };
+    const { from, to, format } = req.validatedQuery;
 
     const range = { from, to };
     const [summary, uploadsOverTime, downloadsByDiagram, accessByDepartment] = await Promise.all([
@@ -72,6 +67,8 @@ export async function exportReport(req: Request, res: Response, next: NextFuncti
   }
 }
 
+// ─── Report Data Type ────────────────────────────────────────────
+
 interface ReportData {
   summary: Awaited<ReturnType<typeof reportsService.getSummary>>;
   uploadsOverTime: Awaited<ReturnType<typeof reportsService.getUploadsOverTime>>;
@@ -79,10 +76,18 @@ interface ReportData {
   accessByDepartment: Awaited<ReturnType<typeof reportsService.getAccessByDepartment>>;
 }
 
+// ─── Excel Export ────────────────────────────────────────────────
+
 async function exportExcel(res: Response, data: ReportData) {
-  // Dynamic import to avoid issues if exceljs is not installed
   const ExcelJS = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
+
+  const headerStyle = {
+    type: 'pattern' as const,
+    pattern: 'solid' as const,
+    fgColor: { argb: 'FF4472C4' },
+  };
+  const headerFont = { bold: true, color: { argb: 'FFFFFFFF' } };
 
   // Sheet 1: Summary
   const summarySheet = workbook.addWorksheet('Summary');
@@ -96,15 +101,8 @@ async function exportExcel(res: Response, data: ReportData) {
   summarySheet.addRow({ metric: 'Downloads This Month', value: data.summary.downloadsThisMonth });
   summarySheet.addRow({ metric: 'Active Users This Month', value: data.summary.activeUsersThisMonth });
   summarySheet.addRow({ metric: 'Storage Used (bytes)', value: data.summary.storageUsedBytes });
-
-  // Style header row
-  summarySheet.getRow(1).font = { bold: true };
-  summarySheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF4472C4' },
-  };
-  summarySheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  summarySheet.getRow(1).fill = headerStyle;
+  summarySheet.getRow(1).font = headerFont;
 
   // Sheet 2: Uploads Over Time
   const uploadsSheet = workbook.addWorksheet('Uploads Over Time');
@@ -113,13 +111,8 @@ async function exportExcel(res: Response, data: ReportData) {
     { header: 'Count', key: 'count', width: 15 },
   ];
   data.uploadsOverTime.forEach((row) => uploadsSheet.addRow(row));
-  uploadsSheet.getRow(1).font = { bold: true };
-  uploadsSheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF4472C4' },
-  };
-  uploadsSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  uploadsSheet.getRow(1).fill = headerStyle;
+  uploadsSheet.getRow(1).font = headerFont;
 
   // Sheet 3: Top Downloads
   const downloadsSheet = workbook.addWorksheet('Top Downloads');
@@ -129,13 +122,8 @@ async function exportExcel(res: Response, data: ReportData) {
     { header: 'Download Count', key: 'downloadCount', width: 20 },
   ];
   data.downloadsByDiagram.forEach((row) => downloadsSheet.addRow(row));
-  downloadsSheet.getRow(1).font = { bold: true };
-  downloadsSheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF4472C4' },
-  };
-  downloadsSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  downloadsSheet.getRow(1).fill = headerStyle;
+  downloadsSheet.getRow(1).font = headerFont;
 
   // Sheet 4: By Department
   const deptSheet = workbook.addWorksheet('By Department');
@@ -147,13 +135,8 @@ async function exportExcel(res: Response, data: ReportData) {
     { header: 'Download Count', key: 'downloadCount', width: 20 },
   ];
   data.accessByDepartment.forEach((row) => deptSheet.addRow(row));
-  deptSheet.getRow(1).font = { bold: true };
-  deptSheet.getRow(1).fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF4472C4' },
-  };
-  deptSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  deptSheet.getRow(1).fill = headerStyle;
+  deptSheet.getRow(1).font = headerFont;
 
   res.setHeader(
     'Content-Type',
@@ -168,8 +151,9 @@ async function exportExcel(res: Response, data: ReportData) {
   res.end();
 }
 
+// ─── PDF Export ──────────────────────────────────────────────────
+
 async function exportPdf(res: Response, data: ReportData) {
-  // Dynamic import PDFKit
   const PDFDocument = (await import('pdfkit')).default;
   const doc = new PDFDocument({ margin: 50, size: 'A4' });
 
@@ -187,32 +171,29 @@ async function exportPdf(res: Response, data: ReportData) {
   doc.fontSize(10).font('Helvetica').text(`Generated: ${new Date().toISOString()}`, { align: 'center' });
   doc.moveDown(1.5);
 
-  // Summary Section
+  // Summary
   doc.fontSize(16).font('Helvetica-Bold').text('Summary');
   doc.moveDown(0.5);
-
-  const summaryRows = [
+  drawTable(doc, ['Metric', 'Value'], [
     ['Total Active Diagrams', String(data.summary.totalActiveDiagrams)],
     ['Total Versions', String(data.summary.totalVersions)],
     ['Uploads This Month', String(data.summary.uploadsThisMonth)],
     ['Downloads This Month', String(data.summary.downloadsThisMonth)],
     ['Active Users This Month', String(data.summary.activeUsersThisMonth)],
     ['Storage Used (bytes)', String(data.summary.storageUsedBytes)],
-  ];
-
-  drawTable(doc, ['Metric', 'Value'], summaryRows, [300, 200]);
+  ], [300, 200]);
   doc.moveDown(1.5);
 
   // Uploads Over Time
   doc.fontSize(16).font('Helvetica-Bold').text('Uploads Over Time');
   doc.moveDown(0.5);
-
   if (data.uploadsOverTime.length > 0) {
-    const uploadRows = data.uploadsOverTime.map((r) => [
-      r.period.slice(0, 10),
-      String(r.count),
-    ]);
-    drawTable(doc, ['Period', 'Count'], uploadRows, [300, 200]);
+    drawTable(
+      doc,
+      ['Period', 'Count'],
+      data.uploadsOverTime.map((r) => [r.period.slice(0, 10), String(r.count)]),
+      [300, 200]
+    );
   } else {
     doc.fontSize(10).font('Helvetica').text('No data available.');
   }
@@ -222,13 +203,13 @@ async function exportPdf(res: Response, data: ReportData) {
   if (doc.y > 650) doc.addPage();
   doc.fontSize(16).font('Helvetica-Bold').text('Top Downloads by Diagram');
   doc.moveDown(0.5);
-
   if (data.downloadsByDiagram.length > 0) {
-    const dlRows = data.downloadsByDiagram.map((r) => [
-      r.title.substring(0, 40),
-      String(r.downloadCount),
-    ]);
-    drawTable(doc, ['Diagram Title', 'Downloads'], dlRows, [350, 150]);
+    drawTable(
+      doc,
+      ['Diagram Title', 'Downloads'],
+      data.downloadsByDiagram.map((r) => [r.title.substring(0, 40), String(r.downloadCount)]),
+      [350, 150]
+    );
   } else {
     doc.fontSize(10).font('Helvetica').text('No data available.');
   }
@@ -238,14 +219,13 @@ async function exportPdf(res: Response, data: ReportData) {
   if (doc.y > 550) doc.addPage();
   doc.fontSize(16).font('Helvetica-Bold').text('Access by Department');
   doc.moveDown(0.5);
-
   if (data.accessByDepartment.length > 0) {
-    const deptRows = data.accessByDepartment.map((r) => [
-      r.nameEn.substring(0, 30),
-      String(r.diagramCount),
-      String(r.downloadCount),
-    ]);
-    drawTable(doc, ['Department', 'Diagrams', 'Downloads'], deptRows, [250, 125, 125]);
+    drawTable(
+      doc,
+      ['Department', 'Diagrams', 'Downloads'],
+      data.accessByDepartment.map((r) => [r.nameEn.substring(0, 30), String(r.diagramCount), String(r.downloadCount)]),
+      [250, 125, 125]
+    );
   } else {
     doc.fontSize(10).font('Helvetica').text('No data available.');
   }
@@ -257,45 +237,38 @@ function drawTable(doc: any, headers: string[], rows: string[][], colWidths: num
   const startX = doc.x;
   const rowHeight = 22;
   const fontSize = 9;
-  const headerBg = '#4472C4';
 
-  // Draw header
+  // Header
   let x = startX;
-  doc.save();
+  const headerY = doc.y;
   for (let i = 0; i < headers.length; i++) {
-    doc.rect(x, doc.y, colWidths[i], rowHeight).fill(headerBg);
-    doc
-      .fill('#FFFFFF')
-      .fontSize(fontSize)
-      .font('Helvetica-Bold')
-      .text(headers[i], x + 5, doc.y + 6, { width: colWidths[i] - 10, lineBreak: false });
+    doc.save();
+    doc.rect(x, headerY, colWidths[i], rowHeight).fill('#4472C4');
+    doc.fill('#FFFFFF').fontSize(fontSize).font('Helvetica-Bold')
+      .text(headers[i], x + 5, headerY + 6, { width: colWidths[i] - 10, lineBreak: false });
+    doc.restore();
     x += colWidths[i];
   }
-  doc.restore();
-  doc.y += rowHeight;
+  doc.y = headerY + rowHeight;
 
-  // Draw rows
-  for (const row of rows) {
-    if (doc.y > 750) {
-      doc.addPage();
-    }
+  // Rows
+  for (let r = 0; r < rows.length; r++) {
+    if (doc.y > 750) doc.addPage();
 
     x = startX;
-    const isEven = rows.indexOf(row) % 2 === 0;
+    const rowY = doc.y;
+    const isEven = r % 2 === 0;
 
-    for (let i = 0; i < row.length; i++) {
+    for (let i = 0; i < rows[r].length; i++) {
       if (isEven) {
         doc.save();
-        doc.rect(x, doc.y, colWidths[i], rowHeight).fill('#F2F2F2');
+        doc.rect(x, rowY, colWidths[i], rowHeight).fill('#F2F2F2');
         doc.restore();
       }
-      doc
-        .fill('#000000')
-        .fontSize(fontSize)
-        .font('Helvetica')
-        .text(row[i], x + 5, doc.y + 6, { width: colWidths[i] - 10, lineBreak: false });
+      doc.fill('#000000').fontSize(fontSize).font('Helvetica')
+        .text(rows[r][i], x + 5, rowY + 6, { width: colWidths[i] - 10, lineBreak: false });
       x += colWidths[i];
     }
-    doc.y += rowHeight;
+    doc.y = rowY + rowHeight;
   }
 }

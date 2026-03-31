@@ -1,23 +1,26 @@
-import { BrowserRouter, Routes, Route } from 'react-router';
+// src/App.tsx — updated with QueryClientProvider
+import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AppRouter } from './routes/AppRouter';
+import './i18n';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={
-            <div className="flex items-center justify-center h-screen bg-slate-50">
-              <div className="p-8 shadow-lg rounded-xl bg-white text-center space-y-4">
-                <h1 className="text-4xl font-bold text-primary">Frontend App</h1>
-                <p className="text-gray-500">React 19 + Tailwind CSS 4 + Vite 6</p>
-              </div>
-            </div>
-          } />
-        </Routes>
-      </BrowserRouter>
+      <AppRouter />
     </QueryClientProvider>
   );
 }

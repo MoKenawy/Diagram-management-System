@@ -39,9 +39,7 @@ export async function getDepartmentStats(req: Request, res: Response, next: Next
 
 export async function createDepartment(req: Request, res: Response, next: NextFunction) {
   try {
-    const data = req.body;
-
-    // Check code uniqueness
+    const data = Array.isArray(req.validatedBody) ? req.validatedBody[0] : req.validatedBody;
     const exists = await departmentsService.checkDepartmentCodeExists(data.code);
     if (exists) {
       res.status(409).json({
@@ -71,16 +69,14 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
 export async function updateDepartment(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const data = req.body;
+    const data = req.validatedBody;
 
-    // Verify department exists
     const existing = await departmentsService.getDepartmentById(id);
     if (!existing) {
       res.status(404).json({ error: 'NOT_FOUND', message: 'Department not found' });
       return;
     }
 
-    // If code is being changed, check uniqueness excluding current ID
     if (data.code && data.code !== existing.code) {
       const codeExists = await departmentsService.checkDepartmentCodeExists(data.code, id);
       if (codeExists) {
@@ -91,7 +87,6 @@ export async function updateDepartment(req: Request, res: Response, next: NextFu
         return;
       }
 
-      // Log code change specifically
       await logAction({
         userId: req.user!.id,
         action: 'DEPARTMENT_CODE_CHANGED',
@@ -104,7 +99,6 @@ export async function updateDepartment(req: Request, res: Response, next: NextFu
 
     const updated = await departmentsService.updateDepartment(id, data);
 
-    // Determine changed fields
     const changedFields: string[] = [];
     if (data.nameAr && data.nameAr !== existing.nameAr) changedFields.push('nameAr');
     if (data.nameEn && data.nameEn !== existing.nameEn) changedFields.push('nameEn');
@@ -125,14 +119,23 @@ export async function updateDepartment(req: Request, res: Response, next: NextFu
   }
 }
 
+// ─── Deactivate Department ───────────────────────────────────────
+
 export async function deactivateDepartment(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-    // Verify department exists
     const existing = await departmentsService.getDepartmentById(id);
     if (!existing) {
       res.status(404).json({ error: 'NOT_FOUND', message: 'Department not found' });
+      return;
+    }
+
+    if (!existing.isActive) {
+      res.status(409).json({
+        error: 'ALREADY_INACTIVE',
+        message: 'Department is already deactivated',
+      });
       return;
     }
 
@@ -157,6 +160,43 @@ export async function deactivateDepartment(req: Request, res: Response, next: Ne
     });
 
     res.json(result.department);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── NEW: Activate Department ────────────────────────────────────
+
+export async function activateDepartment(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    const existing = await departmentsService.getDepartmentById(id);
+    if (!existing) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Department not found' });
+      return;
+    }
+
+    if (existing.isActive) {
+      res.status(409).json({
+        error: 'ALREADY_ACTIVE',
+        message: 'Department is already active',
+      });
+      return;
+    }
+
+    const activated = await departmentsService.activateDepartment(id);
+
+    await logAction({
+      userId: req.user!.id,
+      action: 'DEPARTMENT_ACTIVATED',
+      targetType: 'DEPARTMENT',
+      targetId: id,
+      ipAddress: getClientIp(req),
+      metadata: { nameAr: existing.nameAr, nameEn: existing.nameEn, code: existing.code },
+    });
+
+    res.json(activated);
   } catch (err) {
     next(err);
   }

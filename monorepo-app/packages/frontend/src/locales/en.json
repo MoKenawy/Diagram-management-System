@@ -1,0 +1,181 @@
+{
+  "app": {
+    "title": "Electrical Substation Management System",
+    "shortTitle": "Substation Manager",
+    "subtitle": "Engineering Archive Management System"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Sign In",
+    "loginLoading": "Signing in...",
+    "loginError": "Invalid username or password",
+    "sessionExpired": "Session expired, please login again",
+    "unauthorized": "You are not authorized to access this"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "archive": "Archive",
+    "diagrams": "Diagrams",
+    "reports": "Reports",
+    "admin": "Administration",
+    "users": "Users",
+    "config": "Configuration",
+    "backups": "Backups",
+    "replication": "Replication",
+    "audit": "Audit Log"
+  },
+  "roles": {
+    "VIEWER": "Viewer",
+    "ENGINEER": "Engineer",
+    "DC": "Document Control",
+    "MANAGER": "Manager",
+    "ADMIN": "System Admin"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}",
+    "totalDocuments": "Total Documents",
+    "totalDiagrams": "Total Diagrams",
+    "recentActivity": "Recent Activity",
+    "quickActions": "Quick Actions",
+    "systemStatus": "System Status",
+    "storageUsed": "Storage Used",
+    "lastBackup": "Last Backup",
+    "pendingSync": "Pending Sync"
+  },
+  "archive": {
+    "title": "Engineering Archive",
+    "search": "Search archive...",
+    "filter": "Filter",
+    "upload": "Upload Document",
+    "download": "Download",
+    "delete": "Delete",
+    "rename": "Rename",
+    "move": "Move",
+    "details": "Details",
+    "noResults": "No results found",
+    "fileName": "File Name",
+    "fileSize": "File Size",
+    "fileType": "File Type",
+    "uploadDate": "Upload Date",
+    "uploadedBy": "Uploaded By",
+    "version": "Version",
+    "station": "Station",
+    "department": "Department",
+    "category": "Category"
+  },
+  "diagrams": {
+    "title": "Single-Line Diagrams",
+    "viewer": "Diagram Viewer",
+    "zoom": "Zoom",
+    "pan": "Pan",
+    "layers": "Layers",
+    "annotations": "Annotations",
+    "export": "Export",
+    "print": "Print"
+  },
+  "reports": {
+    "title": "Reports",
+    "generate": "Generate Report",
+    "export": "Export",
+    "dateRange": "Date Range",
+    "from": "From",
+    "to": "To",
+    "type": "Report Type",
+    "activityReport": "Activity Report",
+    "storageReport": "Storage Report",
+    "userReport": "User Report"
+  },
+  "admin": {
+    "title": "Administration Panel",
+    "users": {
+      "title": "User Management",
+      "add": "Add User",
+      "edit": "Edit",
+      "delete": "Delete",
+      "resetPassword": "Reset Password",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "config": {
+      "title": "System Configuration",
+      "save": "Save Settings",
+      "reset": "Reset"
+    },
+    "backups": {
+      "title": "Backup Management",
+      "create": "Create Backup",
+      "restore": "Restore",
+      "schedule": "Schedule",
+      "lastBackup": "Last Backup",
+      "status": "Status"
+    },
+    "replication": {
+      "title": "Replication",
+      "status": "Sync Status",
+      "syncNow": "Sync Now",
+      "lastSync": "Last Sync",
+      "pending": "Pending",
+      "synced": "Synced",
+      "error": "Error"
+    },
+    "audit": {
+      "title": "Audit Log",
+      "action": "Action",
+      "user": "User",
+      "timestamp": "Timestamp",
+      "details": "Details",
+      "ip": "IP Address"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "noData": "No data available",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "name": "Name",
+    "description": "Description",
+    "type": "Type",
+    "size": "Size",
+    "language": "العربية",
+    "switchLanguage": "العربية"
+  },
+  "errors": {
+    "notFound": "Page Not Found",
+    "notFoundMessage": "Sorry, the page you are looking for does not exist",
+    "forbidden": "Access Denied",
+    "forbiddenMessage": "You do not have permission to access this page",
+    "serverError": "Server Error",
+    "networkError": "Network connection error",
+    "goHome": "Go Home",
+    "goBack": "Go Back"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} minute(s) ago",
+    "hoursAgo": "{{count}} hour(s) ago",
+    "daysAgo": "{{count}} day(s) ago",
+    "weeksAgo": "{{count}} week(s) ago",
+    "monthsAgo": "{{count}} month(s) ago",
+    "yearsAgo": "{{count}} year(s) ago"
+  }
+}

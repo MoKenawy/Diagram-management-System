@@ -8,39 +8,47 @@ import * as ctrl from '../controllers/departments.controller';
 
 const router = Router();
 
-// GET /api/departments — all authenticated users, active departments only
+// Active departments (all authenticated users)
 router.get('/', authenticate, ctrl.getActiveDepartments);
 
-// GET /api/departments/all — Admin only, all departments
+// All departments including inactive (Admin only)
 router.get('/all', authenticate, authorize('ADMIN'), ctrl.getAllDepartments);
 
-// GET /api/departments/:id/stats — Admin only
+// Department stats (Admin only)
 router.get('/:id/stats', authenticate, authorize('ADMIN'), ctrl.getDepartmentStats);
 
-// POST /api/departments — Admin only
+// Create department
 router.post(
   '/',
   authenticate,
   authorize('ADMIN'),
-  validate(createDepartmentSchema),
+  validate(createDepartmentSchema, 'body'),
   ctrl.createDepartment
 );
 
-// PATCH /api/departments/:id — Admin only
+// Update department
 router.patch(
   '/:id',
   authenticate,
   authorize('ADMIN'),
-  validate(updateDepartmentSchema),
+  validate(updateDepartmentSchema, 'body'),
   ctrl.updateDepartment
 );
 
-// PATCH /api/departments/:id/deactivate — Admin only
+// Deactivate department
 router.patch(
   '/:id/deactivate',
   authenticate,
   authorize('ADMIN'),
   ctrl.deactivateDepartment
+);
+
+// Activate department
+router.patch(
+  '/:id/activate',
+  authenticate,
+  authorize('ADMIN'),
+  ctrl.activateDepartment
 );
 
 export default router;

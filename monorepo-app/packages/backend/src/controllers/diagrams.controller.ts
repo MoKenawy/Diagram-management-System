@@ -1,7 +1,6 @@
 // src/controllers/diagrams.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
-import path from 'path';
 import * as diagramsService from '../services/diagrams.service';
 import { logAction, getClientIp } from '../services/audit.service';
 import { getAccessibleDiagramIds } from '../utils/accessResolver';
@@ -9,7 +8,7 @@ import { fileFormatToMime } from '../utils/storage';
 import { thumbnailQueue } from '../queues/thumbnail.queue';
 import { prisma } from '../lib/prisma';
 
-// ─── Diagrams CRUD ──────────────────────────────────────────────
+// ─── Diagram CRUD ────────────────────────────────────────────────
 
 export async function createDiagram(req: Request, res: Response, next: NextFunction) {
   try {
@@ -18,15 +17,14 @@ export async function createDiagram(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const body = req.body;
+    const data = Array.isArray(req.validatedBody) ? req.validatedBody[0] : req.validatedBody;
 
     const result = await diagramsService.createDiagram({
-      ...body,
+      ...data,
       file: req.file,
       uploadedById: req.user!.id,
     });
 
-    // Log action
     await logAction({
       userId: req.user!.id,
       action: 'DIAGRAM_CREATED',
@@ -34,21 +32,19 @@ export async function createDiagram(req: Request, res: Response, next: NextFunct
       targetId: result.diagram.id,
       ipAddress: getClientIp(req),
       metadata: {
-        title: body.title,
-        departmentId: body.departmentId,
+        title: data.title,
+        departmentId: data.departmentId,
         versionId: result.version.id,
         originalFilename: req.file.originalname,
       },
     });
 
-    // Enqueue thumbnail generation
     await thumbnailQueue.add('generate', {
       versionId: result.version.id,
       filePath: req.file.path,
       fileFormat: result.version.fileFormat,
     });
 
-    // Serialize BigInt before sending
     res.status(201).json({
       diagram: result.diagram,
       version: {
@@ -57,7 +53,6 @@ export async function createDiagram(req: Request, res: Response, next: NextFunct
       },
     });
   } catch (err) {
-    // Clean up uploaded file on error
     if (req.file?.path) {
       fs.unlink(req.file.path, () => {});
     }
@@ -67,10 +62,9 @@ export async function createDiagram(req: Request, res: Response, next: NextFunct
 
 export async function listDiagrams(req: Request, res: Response, next: NextFunction) {
   try {
-    const query = req.query as any;
+    const query = Array.isArray(req.validatedQuery) ? req.validatedQuery[0] : req.validatedQuery;
     let accessibleIds: string[] | undefined;
 
-    // ENGINEERs can only see diagrams they have been granted access to
     if (req.user!.role === 'ENGINEER') {
       accessibleIds = await getAccessibleDiagramIds(
         prisma,
@@ -78,7 +72,6 @@ export async function listDiagrams(req: Request, res: Response, next: NextFuncti
         req.user!.departmentId
       );
     }
-    // DC, ADMIN, MANAGER see all active diagrams (accessibleIds = undefined)
 
     const result = await diagramsService.listDiagrams(query, accessibleIds);
     res.json(result);
@@ -90,6 +83,7 @@ export async function listDiagrams(req: Request, res: Response, next: NextFuncti
 export async function getDiagram(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
     const diagram = await diagramsService.getDiagramById(id);
 
     if (!diagram) {
@@ -107,13 +101,16 @@ export async function updateDiagram(req: Request, res: Response, next: NextFunct
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
+    const data = Array.isArray(req.validatedBody) ? req.validatedBody[0] : req.validatedBody;
+
+
     const exists = await diagramsService.diagramExists(id);
     if (!exists) {
       res.status(404).json({ error: 'NOT_FOUND', message: 'Diagram not found' });
       return;
     }
 
-    const updated = await diagramsService.updateDiagram(id, req.body);
+    const updated = await diagramsService.updateDiagram(id, data);
 
     await logAction({
       userId: req.user!.id,
@@ -121,7 +118,7 @@ export async function updateDiagram(req: Request, res: Response, next: NextFunct
       targetType: 'DIAGRAM',
       targetId: id,
       ipAddress: getClientIp(req),
-      metadata: { updatedFields: Object.keys(req.body) },
+      metadata: { updatedFields: Object.keys(data) },
     });
 
     res.json(updated);
@@ -133,6 +130,7 @@ export async function updateDiagram(req: Request, res: Response, next: NextFunct
 export async function deleteDiagram(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
 
     const exists = await diagramsService.diagramExists(id);
     if (!exists) {
@@ -163,6 +161,7 @@ export async function getVersions(req: Request, res: Response, next: NextFunctio
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
+
     const exists = await diagramsService.diagramExists(id);
     if (!exists) {
       res.status(404).json({ error: 'NOT_FOUND', message: 'Diagram not found' });
@@ -171,7 +170,6 @@ export async function getVersions(req: Request, res: Response, next: NextFunctio
 
     const versions = await diagramsService.getVersions(id);
 
-    // Serialize BigInt
     const serialized = versions.map((v) => ({
       ...v,
       fileSizeBytes: v.fileSizeBytes.toString(),
@@ -187,6 +185,8 @@ export async function createVersion(req: Request, res: Response, next: NextFunct
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
+    const data = req.validatedBody;
+
     if (!req.file) {
       res.status(400).json({ error: 'VALIDATION_ERROR', message: 'File is required' });
       return;
@@ -200,8 +200,8 @@ export async function createVersion(req: Request, res: Response, next: NextFunct
 
     const version = await diagramsService.createVersion({
       diagramId: id,
-      revisionLabel: req.body.revisionLabel,
-      changeSummary: req.body.changeSummary,
+      revisionLabel: data.revisionLabel,
+      changeSummary: data.changeSummary,
       file: req.file,
       uploadedById: req.user!.id,
     });
@@ -220,7 +220,6 @@ export async function createVersion(req: Request, res: Response, next: NextFunct
       },
     });
 
-    // Enqueue thumbnail
     await thumbnailQueue.add('generate', {
       versionId: version.id,
       filePath: req.file.path,
@@ -250,7 +249,6 @@ export async function downloadVersionFile(req: Request, res: Response, next: Nex
       return;
     }
 
-    // Verify file exists on disk
     if (!fs.existsSync(version.filePath)) {
       res.status(404).json({ error: 'FILE_NOT_FOUND', message: 'File not found on disk' });
       return;
@@ -260,7 +258,6 @@ export async function downloadVersionFile(req: Request, res: Response, next: Nex
     const fileSize = stat.size;
     const mimeType = fileFormatToMime(version.fileFormat);
 
-    // Log download
     await logAction({
       userId: req.user!.id,
       action: 'DIAGRAM_DOWNLOADED',
@@ -274,7 +271,6 @@ export async function downloadVersionFile(req: Request, res: Response, next: Nex
       },
     });
 
-    // ── Support Range header for partial content ──────────────
     const rangeHeader = req.headers.range;
 
     if (rangeHeader) {
@@ -298,10 +294,8 @@ export async function downloadVersionFile(req: Request, res: Response, next: Nex
         'Content-Disposition': `attachment; filename="${encodeURIComponent(version.originalFilename)}"`,
       });
 
-      const stream = fs.createReadStream(version.filePath, { start, end });
-      stream.pipe(res);
+      fs.createReadStream(version.filePath, { start, end }).pipe(res);
     } else {
-      // Full file
       res.writeHead(200, {
         'Content-Length': fileSize,
         'Content-Type': mimeType,
@@ -309,8 +303,7 @@ export async function downloadVersionFile(req: Request, res: Response, next: Nex
         'Content-Disposition': `attachment; filename="${encodeURIComponent(version.originalFilename)}"`,
       });
 
-      const stream = fs.createReadStream(version.filePath);
-      stream.pipe(res);
+      fs.createReadStream(version.filePath).pipe(res);
     }
   } catch (err) {
     next(err);
@@ -349,7 +342,7 @@ export async function getVersionThumbnail(req: Request, res: Response, next: Nex
     res.writeHead(200, {
       'Content-Type': 'image/jpeg',
       'Content-Length': stat.size,
-      'Cache-Control': 'public, max-age=86400', // Cache for 24h
+      'Cache-Control': 'public, max-age=86400',
     });
 
     fs.createReadStream(version.thumbnailPath).pipe(res);
@@ -363,6 +356,7 @@ export async function getVersionThumbnail(req: Request, res: Response, next: Nex
 export async function getAccessRules(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
 
     const exists = await diagramsService.diagramExists(id);
     if (!exists) {
@@ -380,7 +374,8 @@ export async function getAccessRules(req: Request, res: Response, next: NextFunc
 export async function createAccessRule(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { targetType, targetId, accessLevel, policy } = req.body;
+
+    const { targetType, targetId, accessLevel, policy } = req.validatedBody;
 
     const exists = await diagramsService.diagramExists(id);
     if (!exists) {
@@ -388,7 +383,6 @@ export async function createAccessRule(req: Request, res: Response, next: NextFu
       return;
     }
 
-    // Check for duplicate rule
     const duplicate = await diagramsService.checkDuplicateAccessRule(
       id,
       targetType,
