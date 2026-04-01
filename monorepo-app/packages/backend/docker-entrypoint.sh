@@ -9,8 +9,12 @@ echo "Waiting for database to be ready..."
 # echo "Running database migrations..."
 # npx prisma migrate deploy
 
+echo "Running prisma generate..."
+npx prisma generate 
 # Use 'migrate deploy' if you have migration files, 
 # otherwise 'db push' for rapid prototyping
+echo "Running prisma db push..."
+
 npx prisma db push 
 
 # Run seed (optional - remove if you don't want to seed every time)
