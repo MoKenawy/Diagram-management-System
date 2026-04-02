@@ -9,48 +9,147 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as DiagramsIndexRouteImport } from './routes/diagrams/index'
+import { Route as ArchiveIndexRouteImport } from './routes/archive/index'
+import { Route as DiagramsIdRouteImport } from './routes/diagrams/$id'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: '/auth/login',
-  path: '/auth/login',
+const DiagramsIndexRoute = DiagramsIndexRouteImport.update({
+  id: '/diagrams/',
+  path: '/diagrams/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArchiveIndexRoute = ArchiveIndexRouteImport.update({
+  id: '/archive/',
+  path: '/archive/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiagramsIdRoute = DiagramsIdRouteImport.update({
+  id: '/diagrams/$id',
+  path: '/diagrams/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
+  id: '/admin/audit-logs',
+  path: '/admin/audit-logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth/login': typeof AuthLoginRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/diagrams/$id': typeof DiagramsIdRoute
+  '/archive/': typeof ArchiveIndexRoute
+  '/diagrams/': typeof DiagramsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth/login': typeof AuthLoginRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/diagrams/$id': typeof DiagramsIdRoute
+  '/archive': typeof ArchiveIndexRoute
+  '/diagrams': typeof DiagramsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth/login': typeof AuthLoginRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/diagrams/$id': typeof DiagramsIdRoute
+  '/archive/': typeof ArchiveIndexRoute
+  '/diagrams/': typeof DiagramsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/login'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/admin/audit-logs'
+    | '/admin/users'
+    | '/diagrams/$id'
+    | '/archive/'
+    | '/diagrams/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/login'
-  id: '__root__' | '/' | '/auth/login'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/admin/audit-logs'
+    | '/admin/users'
+    | '/diagrams/$id'
+    | '/archive'
+    | '/diagrams'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/admin/audit-logs'
+    | '/admin/users'
+    | '/diagrams/$id'
+    | '/archive/'
+    | '/diagrams/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthLoginRoute: typeof AuthLoginRoute
+  DashboardRoute: typeof DashboardRoute
+  LoginRoute: typeof LoginRoute
+  AdminAuditLogsRoute: typeof AdminAuditLogsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  DiagramsIdRoute: typeof DiagramsIdRoute
+  ArchiveIndexRoute: typeof ArchiveIndexRoute
+  DiagramsIndexRoute: typeof DiagramsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -58,11 +157,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/login': {
-      id: '/auth/login'
-      path: '/auth/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
+    '/diagrams/': {
+      id: '/diagrams/'
+      path: '/diagrams'
+      fullPath: '/diagrams/'
+      preLoaderRoute: typeof DiagramsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/archive/': {
+      id: '/archive/'
+      path: '/archive'
+      fullPath: '/archive/'
+      preLoaderRoute: typeof ArchiveIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diagrams/$id': {
+      id: '/diagrams/$id'
+      path: '/diagrams/$id'
+      fullPath: '/diagrams/$id'
+      preLoaderRoute: typeof DiagramsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit-logs': {
+      id: '/admin/audit-logs'
+      path: '/admin/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AdminAuditLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -70,7 +197,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthLoginRoute: AuthLoginRoute,
+  DashboardRoute: DashboardRoute,
+  LoginRoute: LoginRoute,
+  AdminAuditLogsRoute: AdminAuditLogsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  DiagramsIdRoute: DiagramsIdRoute,
+  ArchiveIndexRoute: ArchiveIndexRoute,
+  DiagramsIndexRoute: DiagramsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

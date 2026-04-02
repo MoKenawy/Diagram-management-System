@@ -14,13 +14,13 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-const authApi = axios.create({
+export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // For refresh token cookie
 });
 
 // Request interceptor: attach Authorization header
-authApi.interceptors.request.use(
+api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const { accessToken } = useAuthStore.getState();
     if (accessToken && config.headers) {
@@ -34,7 +34,7 @@ authApi.interceptors.request.use(
 );
 
 // Response interceptor: handle 401 → refresh → retry once
-authApi.interceptors.response.use(
+api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as CustomAxiosRequestConfig;
@@ -54,7 +54,7 @@ authApi.interceptors.response.use(
       if (newToken) {
         // Update the header and retry
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return authApi(originalRequest);
+        return api(originalRequest);
       }
 
       // refreshToken() already called logout() if it failed
@@ -75,20 +75,20 @@ authApi.interceptors.response.use(
 
 
 export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  const response = await authApi.post<LoginResponse>('/api/auth/login', credentials);
+  const response = await api.post<LoginResponse>('/api/auth/login', credentials);
   return response.data;
 };
 
 export const logout = async (): Promise<void> => {
-  await authApi.post('/api/auth/logout');
+  await api.post('/api/auth/logout');
 };
 
 export const refreshToken = async (): Promise<{ accessToken: string }> => {
-  const response = await authApi.post<{ accessToken: string }>('/api/auth/refresh');
+  const response = await api.post<{ accessToken: string }>('/api/auth/refresh');
   return response.data;
 };
 
 export const getCurrentUser = async (): Promise<User> => {
-  const response = await authApi.get<User>('/api/auth/me');
+  const response = await api.get<User>('/api/auth/me');
   return response.data;
 };

@@ -7,6 +7,7 @@ COPY package*.json ./
 # Copy frontend dependency files
 COPY packages/frontend/package*.json ./packages/frontend/
 
+RUN rm -rf node_modules package-lock.json
 # Install using workspace
 RUN npm install --workspace=@app/frontend
 
