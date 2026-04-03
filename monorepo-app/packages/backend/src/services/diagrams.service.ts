@@ -8,6 +8,8 @@ import {
 } from '../schemas/diagrams.schema';
 import path from 'path';
 import { extensionToFileFormat } from '../utils/storage';
+import { parseDate } from '../utils/dateFormatter';
+import { logger } from '../utils/logger';
 
 // ─── Typed transaction client ────────────────────────────────────
 
@@ -122,6 +124,9 @@ export async function listDiagrams(
     isActive: true,
   };
 
+
+  logger.error(`------------------------------------- Original uploadedFrom string: ${uploadedFrom} -------------------------------------`);
+
   if (accessibleIds !== undefined) {
     if (accessibleIds.length === 0) {
       return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
@@ -129,9 +134,12 @@ export async function listDiagrams(
     where.id = { in: accessibleIds };
   }
 
-  if (departmentId) {
-    where.departmentId = departmentId;
+  if (departmentId && departmentId.length > 0) {
+    where.departmentId = {
+      in: departmentId,
+    };
   }
+
 
   if (search) {
     where.OR = [
@@ -140,18 +148,33 @@ export async function listDiagrams(
     ];
   }
 
-  if (fileFormat) {
+  if (fileFormat && fileFormat.length > 0) {
     where.versions = {
-      some: { fileFormat: fileFormat as FileFormat },
+      some: {
+        fileFormat: { in: fileFormat },
+      },
     };
   }
 
-  if (uploadedFrom || uploadedTo) {
-    const dateFilter: Prisma.DateTimeFilter = {};
-    if (uploadedFrom) dateFilter.gte = new Date(uploadedFrom);
-    if (uploadedTo) dateFilter.lte = new Date(uploadedTo);
-    where.createdAt = dateFilter;
+
+if (uploadedFrom || uploadedTo) {
+  const dateFilter: Prisma.DateTimeFilter = {};
+
+  if (uploadedFrom) {
+  dateFilter.gte = parseDate(uploadedFrom);
+  logger.error(`Parsed uploadedFrom: ${dateFilter.gte}`);
+  logger.error(`Original uploadedFrom string: ${uploadedFrom}`);
   }
+  
+  if (uploadedTo) {
+    const toDate = parseDate(uploadedTo);
+    toDate.setDate(toDate.getDate() + 1);
+    dateFilter.lt = toDate; 
+  }
+
+  where.createdAt = dateFilter;
+}
+
 
   const [diagrams, total] = await Promise.all([
     prisma.diagram.findMany({
@@ -171,9 +194,9 @@ export async function listDiagrams(
   const currentVersions =
     currentVersionIds.length > 0
       ? await prisma.diagramVersion.findMany({
-          where: { id: { in: currentVersionIds } },
-          include: VERSION_INCLUDE,
-        })
+        where: { id: { in: currentVersionIds } },
+        include: VERSION_INCLUDE,
+      })
       : [];
 
   const versionMap = new Map(currentVersions.map((v) => [v.id, v]));
@@ -197,17 +220,17 @@ export async function listDiagrams(
       versionCount: diagram._count.versions,
       currentVersion: currentVersion
         ? {
-            id: currentVersion.id,
-            versionNumber: currentVersion.versionNumber,
-            revisionLabel: currentVersion.revisionLabel,
-            changeSummary: currentVersion.changeSummary,
-            fileFormat: currentVersion.fileFormat,
-            fileSizeBytes: currentVersion.fileSizeBytes.toString(),
-            originalFilename: currentVersion.originalFilename,
-            thumbnailPath: currentVersion.thumbnailPath,
-            uploadedAt: currentVersion.uploadedAt,
-            uploadedBy: currentVersion.uploadedBy,
-          }
+          id: currentVersion.id,
+          versionNumber: currentVersion.versionNumber,
+          revisionLabel: currentVersion.revisionLabel,
+          changeSummary: currentVersion.changeSummary,
+          fileFormat: currentVersion.fileFormat,
+          fileSizeBytes: currentVersion.fileSizeBytes.toString(),
+          originalFilename: currentVersion.originalFilename,
+          thumbnailPath: currentVersion.thumbnailPath,
+          uploadedAt: currentVersion.uploadedAt,
+          uploadedBy: currentVersion.uploadedBy,
+        }
         : null,
     };
   });
@@ -255,17 +278,17 @@ export async function getDiagramById(id: string) {
     versionCount: diagram._count.versions,
     currentVersion: currentVersion
       ? {
-          id: currentVersion.id,
-          versionNumber: currentVersion.versionNumber,
-          revisionLabel: currentVersion.revisionLabel,
-          changeSummary: currentVersion.changeSummary,
-          fileFormat: currentVersion.fileFormat,
-          fileSizeBytes: currentVersion.fileSizeBytes.toString(),
-          originalFilename: currentVersion.originalFilename,
-          thumbnailPath: currentVersion.thumbnailPath,
-          uploadedAt: currentVersion.uploadedAt,
-          uploadedBy: currentVersion.uploadedBy,
-        }
+        id: currentVersion.id,
+        versionNumber: currentVersion.versionNumber,
+        revisionLabel: currentVersion.revisionLabel,
+        changeSummary: currentVersion.changeSummary,
+        fileFormat: currentVersion.fileFormat,
+        fileSizeBytes: currentVersion.fileSizeBytes.toString(),
+        originalFilename: currentVersion.originalFilename,
+        thumbnailPath: currentVersion.thumbnailPath,
+        uploadedAt: currentVersion.uploadedAt,
+        uploadedBy: currentVersion.uploadedBy,
+      }
       : null,
   };
 }

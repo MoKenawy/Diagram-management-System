@@ -364,8 +364,8 @@ export interface DiagramListParams {
   page?: number;
   limit?: number;
   search?: string;
-  fileFormat?: FileFormat;
-  departmentId?: string;
+  fileFormat?: FileFormat[]; // Changed from single FileFormat
+  departmentId?: string[];    // Changed from single string
   uploadedFrom?: string;
   uploadedTo?: string;
 }

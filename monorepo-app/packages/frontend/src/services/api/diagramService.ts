@@ -1,5 +1,5 @@
-import { api } from '@/services/api/authService';
 // src/services/api/diagramService.ts
+import { api } from '@/services/api/authService';
 import type {
   DiagramPaginatedResponse,
   DiagramListParams,
