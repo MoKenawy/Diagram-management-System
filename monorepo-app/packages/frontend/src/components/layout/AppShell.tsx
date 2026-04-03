@@ -3,6 +3,7 @@ import { Box, Container, AppBar, Toolbar, Typography, IconButton } from '@mui/ma
 import { Logout } from '@mui/icons-material';
 import { useAuthStore } from '@/stores/authStore';
 import type { ReactNode } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 
 interface AppShellProps {
   children: ReactNode;
@@ -10,6 +11,13 @@ interface AppShellProps {
 
 export const AppShell = ({ children }: AppShellProps) => {
   const { user, logout } = useAuthStore();
+
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate({ to: '/login' });
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }} dir="rtl">
@@ -29,7 +37,7 @@ export const AppShell = ({ children }: AppShellProps) => {
           <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
             {user?.fullName}
           </Typography>
-          <IconButton onClick={logout} size="small">
+          <IconButton onClick={handleLogout} size="small">
             <Logout fontSize="small" />
           </IconButton>
         </Toolbar>
