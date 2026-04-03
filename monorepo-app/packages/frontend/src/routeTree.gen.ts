@@ -10,14 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ArchiveRouteImport } from './routes/archive'
+import { Route as DashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ArchiveRouteImport } from './routes/_authenticated/archive'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DiagramsIndexRouteImport } from './routes/diagrams/index'
-import { Route as DiagramsCreateRouteImport } from './routes/diagrams/create'
-import { Route as DiagramsIdRouteImport } from './routes/diagrams/$id'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
+import { Route as DiagramsIndexRouteImport } from './routes/_authenticated/diagrams/index'
+import { Route as DiagramsCreateRouteImport } from './routes/_authenticated/diagrams/create'
+import { Route as DiagramsIdRouteImport } from './routes/_authenticated/diagrams/$id'
+import { Route as AdminUsersRouteImport } from './routes/_authenticated/admin/users'
+import { Route as AdminAuditLogsRouteImport } from './routes/_authenticated/admin/audit-logs'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
