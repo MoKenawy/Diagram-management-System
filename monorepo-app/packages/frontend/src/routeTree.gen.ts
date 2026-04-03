@@ -11,9 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DiagramsIndexRouteImport } from './routes/diagrams/index'
-import { Route as ArchiveIndexRouteImport } from './routes/archive/index'
+import { Route as DiagramsCreateRouteImport } from './routes/diagrams/create'
 import { Route as DiagramsIdRouteImport } from './routes/diagrams/$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
@@ -28,6 +29,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArchiveRoute = ArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -38,9 +44,9 @@ const DiagramsIndexRoute = DiagramsIndexRouteImport.update({
   path: '/diagrams/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ArchiveIndexRoute = ArchiveIndexRouteImport.update({
-  id: '/archive/',
-  path: '/archive/',
+const DiagramsCreateRoute = DiagramsCreateRouteImport.update({
+  id: '/diagrams/create',
+  path: '/diagrams/create',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DiagramsIdRoute = DiagramsIdRouteImport.update({
@@ -61,76 +67,83 @@ const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/archive': typeof ArchiveRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/users': typeof AdminUsersRoute
   '/diagrams/$id': typeof DiagramsIdRoute
-  '/archive/': typeof ArchiveIndexRoute
+  '/diagrams/create': typeof DiagramsCreateRoute
   '/diagrams/': typeof DiagramsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/archive': typeof ArchiveRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/users': typeof AdminUsersRoute
   '/diagrams/$id': typeof DiagramsIdRoute
-  '/archive': typeof ArchiveIndexRoute
+  '/diagrams/create': typeof DiagramsCreateRoute
   '/diagrams': typeof DiagramsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/archive': typeof ArchiveRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/users': typeof AdminUsersRoute
   '/diagrams/$id': typeof DiagramsIdRoute
-  '/archive/': typeof ArchiveIndexRoute
+  '/diagrams/create': typeof DiagramsCreateRoute
   '/diagrams/': typeof DiagramsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/archive'
     | '/dashboard'
     | '/login'
     | '/admin/audit-logs'
     | '/admin/users'
     | '/diagrams/$id'
-    | '/archive/'
+    | '/diagrams/create'
     | '/diagrams/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/archive'
     | '/dashboard'
     | '/login'
     | '/admin/audit-logs'
     | '/admin/users'
     | '/diagrams/$id'
-    | '/archive'
+    | '/diagrams/create'
     | '/diagrams'
   id:
     | '__root__'
     | '/'
+    | '/archive'
     | '/dashboard'
     | '/login'
     | '/admin/audit-logs'
     | '/admin/users'
     | '/diagrams/$id'
-    | '/archive/'
+    | '/diagrams/create'
     | '/diagrams/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ArchiveRoute: typeof ArchiveRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   AdminAuditLogsRoute: typeof AdminAuditLogsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   DiagramsIdRoute: typeof DiagramsIdRoute
-  ArchiveIndexRoute: typeof ArchiveIndexRoute
+  DiagramsCreateRoute: typeof DiagramsCreateRoute
   DiagramsIndexRoute: typeof DiagramsIndexRoute
 }
 
@@ -150,6 +163,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/archive': {
+      id: '/archive'
+      path: '/archive'
+      fullPath: '/archive'
+      preLoaderRoute: typeof ArchiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -164,11 +184,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DiagramsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/archive/': {
-      id: '/archive/'
-      path: '/archive'
-      fullPath: '/archive/'
-      preLoaderRoute: typeof ArchiveIndexRouteImport
+    '/diagrams/create': {
+      id: '/diagrams/create'
+      path: '/diagrams/create'
+      fullPath: '/diagrams/create'
+      preLoaderRoute: typeof DiagramsCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/diagrams/$id': {
@@ -197,12 +217,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ArchiveRoute: ArchiveRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   AdminAuditLogsRoute: AdminAuditLogsRoute,
   AdminUsersRoute: AdminUsersRoute,
   DiagramsIdRoute: DiagramsIdRoute,
-  ArchiveIndexRoute: ArchiveIndexRoute,
+  DiagramsCreateRoute: DiagramsCreateRoute,
   DiagramsIndexRoute: DiagramsIndexRoute,
 }
 export const routeTree = rootRouteImport

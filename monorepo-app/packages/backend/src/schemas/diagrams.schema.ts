@@ -46,14 +46,34 @@ export const createVersionSchema = z.object({
 });
 
 // ─── List Diagrams query ────────────────────────────────────────
+// ─── List Diagrams query ────────────────────────────────────────
+
+// Helper: accept a single value or an array, always normalize to array
+const toArray = <T extends z.ZodTypeAny>(schema: T) =>
+  z.union([schema.transform((v) => [v]), schema.array()]).optional();
+
+
+const isoOrDate = z.string().refine((val) => {
+  // Accept YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
+
+  // Accept ISO
+  return !isNaN(Date.parse(val));
+}, {
+  message: 'Must be a valid date (YYYY-MM-DD or ISO)',
+});
+
+
+
+
 export const listDiagramsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   search: z.string().optional(),
-  fileFormat: z.enum(['PDF', 'JPEG', 'PNG', 'SVG', 'DWG']).optional(),
-  departmentId: z.string().optional(),
-  uploadedFrom: z.string().datetime({ offset: true }).optional(),
-  uploadedTo: z.string().datetime({ offset: true }).optional(),
+  fileFormat: toArray(z.enum(['PDF', 'JPEG', 'PNG', 'SVG', 'DWG'])),
+  departmentId: toArray(z.string().min(1)),
+  uploadedFrom: isoOrDate.optional(),
+  uploadedTo: isoOrDate.optional(),
 });
 
 // ─── Access Rule ────────────────────────────────────────────────
