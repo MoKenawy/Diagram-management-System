@@ -71,10 +71,9 @@ api.interceptors.response.use(
       const newToken = await refreshToken();
 
       if (newToken) {
-        // Update the header and retry
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return api(originalRequest);
       }
+
 
       // refreshToken() already called logout() if it failed
       return Promise.reject(error);
