@@ -22,6 +22,7 @@ export const DiagramPageHeader = ({ diagram, onBack }: DiagramPageHeaderProps) =
   const handlePrint = (): void => {
     window.print();
   };
+  
 
   return (
     <Box className="no-print" sx={{ mb: 3 }}>
@@ -69,6 +70,8 @@ export const DiagramPageHeader = ({ diagram, onBack }: DiagramPageHeaderProps) =
 
         {/* Actions */}
         <Stack direction="row" spacing={1}>
+
+
           <Button
             variant="contained"
             startIcon={<Download />}
@@ -87,6 +90,8 @@ export const DiagramPageHeader = ({ diagram, onBack }: DiagramPageHeaderProps) =
             <Print />
           </IconButton>
         </Stack>
+
+
       </Box>
     </Box>
   );

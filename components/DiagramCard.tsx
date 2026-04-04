@@ -46,7 +46,7 @@ export function DiagramCard({ diagram }: DiagramCardProps) {
 
         {/* Revision badge */}
         <span className="absolute end-2 top-2 rounded-md bg-black/60 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
-          {diagram.currentRevisionLabel}
+          {diagram.currentqLabel}
         </span>
       </div>
 
