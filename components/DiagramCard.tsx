@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../../hooks/useLanguage';
 import { timeAgo } from '../../../utils/format';
-import type { DiagramSummary } from '../../../types/dashboard';
+import type { DiagramSummary } from '@/types/dashboard';
 
 interface DiagramCardProps {
   diagram: DiagramSummary;

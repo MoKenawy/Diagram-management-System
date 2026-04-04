@@ -7,7 +7,7 @@ import { ArchivePageSkeleton } from '@/components/diagrams/ArchivePageSkeleton';
 
 const ArchivePage = lazy(() => import('@/pages/ArchivePage'));
 
-export const Route = createFileRoute('/archive')({
+export const Route = createFileRoute('/_authenticated/archive')({
   validateSearch: (search) => archiveSearchSchema.parse(search),
   component: () => (
     <Suspense fallback={<ArchivePageSkeleton />}>

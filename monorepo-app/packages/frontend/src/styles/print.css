@@ -1,0 +1,29 @@
+/* src/styles/print.css */
+@media print {
+  .no-print,
+  .MuiAppBar-root,
+  .MuiDrawer-root {
+    display: none !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-only {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
