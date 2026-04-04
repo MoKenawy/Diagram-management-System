@@ -8,11 +8,12 @@ import { DCStatRow } from '@/components/dashboard/dc/DCStatRow';
 import { RecentUploadsTable } from '@/components/dashboard/dc/RecentUploadsTable';
 import { SectionHeader } from '@/components/shared/SectionHeader';
 
-// TODO: Import CreateDiagramModal when implemented
-// import { CreateDiagramModal } from '@/components/diagrams/CreateDiagramModal';
+import { CreateDiagramModal } from '@/components/diagrams/CreateDiagramModal';
 
 export const DCDashboard = () => {
-  const [_, setIsCreateOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+
 
   const { data: summary, isLoading: summaryLoading } = useReportSummary();
   const { data: recentDiagrams, isLoading: diagramsLoading } = useDiagramList({
@@ -40,6 +41,8 @@ export const DCDashboard = () => {
         }
       />
 
+
+
       <DCStatRow summary={summary} isLoading={summaryLoading} />
 
       <RecentUploadsTable
@@ -47,7 +50,7 @@ export const DCDashboard = () => {
         isLoading={diagramsLoading}
       />
 
-      {/* <CreateDiagramModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} /> */}
+      <CreateDiagramModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
     </Box>
   );
 };

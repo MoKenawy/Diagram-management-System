@@ -10,6 +10,7 @@ import {
     Typography,
     useMediaQuery,
     useTheme,
+    Button,
 } from '@mui/material';
 import { AppShell } from '@/components/layout/AppShell';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,6 +24,8 @@ import { DiagramPageHeader } from '@/components/diagrams/DiagramPageHeader';
 import { Role, type DiagramVersionResponse, type FileFormat } from '@/types/index';
 import '@/styles/print.css';
 import { Route as ArchiveRoute } from '@/routes/_authenticated/archive';
+import { UploadRevisionModal } from '@/components/diagrams/UploadRevisionModal';
+import { Download } from '@mui/icons-material';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -50,6 +53,7 @@ const DiagramPage = () => {
     const [activeTab, setActiveTab] = useState<SidebarTab>('history');
 
     const canManage: boolean = PRIVILEGED_ROLES.includes(userRole);
+  const [isReivisionModalOpen, setIsRevisionModalOpen] = useState(false);
 
     // Derive active version for viewer
     const viewerVersion: SelectedVersion | null = selectedVersion
@@ -148,6 +152,32 @@ const DiagramPage = () => {
                     />
                 )}
             </Box>
+
+          <Button
+            variant="contained"
+            startIcon={<Download />}
+            onClick={() => setIsRevisionModalOpen(true)}
+            sx={{
+              borderRadius: 3,
+              textTransform: 'none',
+              fontWeight: 600,
+              background: 'linear-gradient(90deg, #2e7d32, #66bb6a)',
+            }}
+          >
+            رفع إصدار جديد
+          </Button>
+
+
+        {/* Revision Modal */}
+       {canManage && (
+          <UploadRevisionModal
+            open={isReivisionModalOpen}
+            diagramId={diagram.id}
+            onClose={() => setIsRevisionModalOpen(false)}
+            diagramTitle={diagram.title}
+          />
+       )}
+
         </Box>
     );
 
