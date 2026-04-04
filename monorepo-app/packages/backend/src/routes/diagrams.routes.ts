@@ -80,6 +80,6 @@ router.post(
   ctrl.createAccessRule
 );
 
-router.delete('/:id/access/:ruleId', authorize('DC'), ctrl.deleteAccessRule);
+router.delete('/:id/access/:ruleId', authorize('DC','ADMIN'), ctrl.deleteAccessRule);
 
 export default router;

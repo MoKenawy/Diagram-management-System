@@ -8,8 +8,8 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
 
-    "baseUrl": ".",
     "rootDir": "./src",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "src/*"

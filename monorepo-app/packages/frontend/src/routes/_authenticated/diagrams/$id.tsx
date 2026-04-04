@@ -1,9 +1,21 @@
-import { createFileRoute } from '@tanstack/react-router'
+// src/routes/diagrams.$id.tsx
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { Suspense, lazy } from 'react';
+import { useAuthStore } from '@/stores/authStore';
+import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 
-export const Route = createFileRoute('/diagrams/$id')({
-  component: RouteComponent,
-})
+const DiagramPage = lazy(() => import('@/pages/DiagramPage'));
 
-function RouteComponent() {
-  return <div>Hello "/diagrams/$id"!</div>
-}
+export const Route = createFileRoute('/_authenticated/diagrams/$id')({
+  beforeLoad: () => {
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      throw redirect({ to: '/login' });
+    }
+  },
+  component: () => (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DiagramPage />
+    </Suspense>
+  ),
+});

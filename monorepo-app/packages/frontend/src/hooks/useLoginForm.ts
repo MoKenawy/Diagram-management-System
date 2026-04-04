@@ -45,7 +45,7 @@ export const useLoginForm = () => {
     });
 
     if (!result.success) {
-      const firstError = result.error.errors[0]?.message ?? 'Validation failed';
+      const firstError = result.error.issues[0]?.message ?? 'Validation failed';
       return { success: false, error: firstError };
     }
 

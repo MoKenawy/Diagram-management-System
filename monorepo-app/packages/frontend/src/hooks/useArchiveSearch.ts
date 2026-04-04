@@ -1,18 +1,17 @@
 // src/hooks/useArchiveSearch.ts
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, getRouteApi } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import type { ArchiveSearchParams } from '@/validations/archiveSearchSchema'; // Correct path
 import type { FileFormat } from '@/types/index'; // Corrected import path
+import { Route as ArchiveRoute } from '@/routes/_authenticated/archive';
 
 const DEBOUNCE_MS = 300;
 
-// getRouteApi gives a fully typed API object for the route path
-const routeApi = getRouteApi('/archive');
 
 export const useArchiveSearch = () => {
   const navigate = useNavigate();
   // Provide the type argument to useSearch to help TypeScript infer
-  const search: ArchiveSearchParams = routeApi.useSearch();
+  const search: ArchiveSearchParams = ArchiveRoute.useSearch();
   const [searchInput, setSearchInput] = useState(search.search ?? '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Initialize useRef
 

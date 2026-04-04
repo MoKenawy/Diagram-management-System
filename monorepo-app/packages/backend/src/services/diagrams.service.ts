@@ -125,7 +125,6 @@ export async function listDiagrams(
   };
 
 
-  logger.error(`------------------------------------- Original uploadedFrom string: ${uploadedFrom} -------------------------------------`);
 
   if (accessibleIds !== undefined) {
     if (accessibleIds.length === 0) {
@@ -162,8 +161,7 @@ if (uploadedFrom || uploadedTo) {
 
   if (uploadedFrom) {
   dateFilter.gte = parseDate(uploadedFrom);
-  logger.error(`Parsed uploadedFrom: ${dateFilter.gte}`);
-  logger.error(`Original uploadedFrom string: ${uploadedFrom}`);
+
   }
   
   if (uploadedTo) {
