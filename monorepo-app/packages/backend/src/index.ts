@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import cookieParser from 'cookie-parser';
-import authRouter from './routes/auth';
+import authRouter from './routes/auth.routes';
 import cors from 'cors';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
