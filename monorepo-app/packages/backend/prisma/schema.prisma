@@ -33,15 +33,19 @@ enum TargetType {
   DEPARTMENT
 }
 
-enum AccessLevel {
-  VIEW
-  EDIT
-  ADMIN
-}
+
 
 enum AccessPolicy {
   ALLOW
   DENY
+}
+
+enum AccessLevel {
+  VIEW
+  CREATE
+  UPDATE
+  DELETE
+  ADMIN
 }
 
 enum BackupStatus {
@@ -136,8 +140,9 @@ model DiagramVersion {
   @@unique([diagramId, versionNumber])
 }
 
+
 model DiagramAccess {
-  id          String     @id @default(cuid())
+  id          String       @id @default(cuid())
   diagramId   String
   targetType  TargetType
   targetId    String
@@ -147,9 +152,11 @@ model DiagramAccess {
   grantedById String
 
   // Relations
-  diagram     Diagram      @relation(fields: [diagramId], references: [id])
-  grantedBy   User         @relation("AccessGrantedBy", fields: [grantedById], references: [id])
+  diagram   Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+  grantedBy User    @relation("AccessGrantedBy", fields: [grantedById], references: [id])
 
+  // One rule per target+action slot — safe to upsert against
+  @@unique([diagramId, targetType, targetId, accessLevel])
   @@index([targetType, targetId, diagramId])
 }
 

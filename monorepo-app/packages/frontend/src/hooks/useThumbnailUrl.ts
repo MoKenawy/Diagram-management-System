@@ -1,6 +1,6 @@
 // src/hooks/useThumbnailUrl.ts
 import { useState, useEffect } from 'react';
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 
 export const useThumbnailUrl = (
   diagramId: string,

@@ -7,7 +7,7 @@ import {
   logout as logoutApi,
   getCurrentUser,
   refreshToken as refreshTokenApi,
-} from '../services/api/authService';
+} from '@/api/services/authService';
 import { AxiosError } from 'axios';
 
 // ─── Helper ────────────────────────────────────────────────────

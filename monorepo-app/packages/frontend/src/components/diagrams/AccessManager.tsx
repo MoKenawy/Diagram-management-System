@@ -39,8 +39,11 @@ const POLICY_CONFIG = {
 
 const LEVEL_CONFIG = {
   VIEW: { label: 'عرض' },
-  EDIT: { label: 'تعديل' },
   ADMIN: { label: 'مدير' },
+  UPDATE: { label: 'تعديل' },
+  CREATE: { label: 'إنشاء' },
+  DELETE: { label: 'حذف' },
+
 } as const;
 
 const SKELETON_ROWS = 3;

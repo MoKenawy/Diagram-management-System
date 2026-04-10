@@ -1,7 +1,7 @@
 // src/hooks/queries/useDiagramQueries.ts
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { getDiagrams } from '@/services/api/diagramService';
+import { getDiagrams } from '@/api/services/diagramService';
 import type { DiagramListParams } from '@/types/index';
 
 export const diagramKeys = {

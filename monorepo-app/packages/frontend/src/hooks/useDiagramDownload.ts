@@ -1,6 +1,6 @@
 // src/hooks/useDiagramDownload.ts
 import { useCallback } from 'react';
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 import { getDownloadUrl } from '@/utils/diagramFormatUtils';
 
 export const useDiagramDownload = () => {

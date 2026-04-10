@@ -1,5 +1,5 @@
 // src/services/api/adminService.ts
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 import type {
   AuditLogPaginatedResponse,
   AuditLogListParams,

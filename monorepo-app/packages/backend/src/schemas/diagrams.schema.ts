@@ -80,7 +80,7 @@ export const listDiagramsQuerySchema = z.object({
 export const createAccessRuleSchema = z.object({
   targetType: z.enum(['USER', 'DEPARTMENT']),
   targetId: z.string().min(1, 'Target ID is required'),
-  accessLevel: z.enum(['VIEW', 'EDIT', 'ADMIN']),
+  accessLevel: z.enum(['VIEW', 'UPDATE', 'ADMIN', 'CREATE', 'DELETE']),
   policy: z.enum(['ALLOW', 'DENY']),
 });
 

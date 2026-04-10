@@ -1,6 +1,6 @@
 // src/hooks/queries/useDepartmentQueries.ts
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 import type { DepartmentBasic } from '@/types/index';
 
 export const departmentKeys = {

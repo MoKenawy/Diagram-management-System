@@ -5,7 +5,7 @@ import {
   getUploadsOverTime,
   getDownloadsByDiagram,
   getAccessByDepartment,
-} from '@/services/api/reportService';
+} from '@/api/services/reportService';
 import type {
   ReportDateParams,
   UploadsOverTimeParams,

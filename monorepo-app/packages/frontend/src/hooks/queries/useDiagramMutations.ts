@@ -1,7 +1,7 @@
 // src/hooks/queries/useDiagramMutations.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 import type{ 
   DiagramCreateResponse, 
   DiagramVersionResponse, 

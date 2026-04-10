@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Role } from '@prisma/client';
 import { prisma } from '../src/lib/prisma'; // Use shared client
-import { hashPassword } from '../src/utils/auth';
+import { hashPassword } from '../src/controllers/auth.controller';
 
 async function main() {  
   console.log('Starting database seeding...');
