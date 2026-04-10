@@ -1,8 +1,8 @@
 // src/routes/_authenticated.tsx
 
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 import { useAuthStore } from '@/stores/authStore';
-
+import { AppShell } from '@/components/layout/AppShell';
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: () => {
     const { user } = useAuthStore.getState();
@@ -13,4 +13,7 @@ export const Route = createFileRoute('/_authenticated')({
       });
     }
   },
+  component: () => <AppShell> 
+    <Outlet />
+  </AppShell>,
 });

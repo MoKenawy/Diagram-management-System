@@ -14,11 +14,16 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedArchiveRouteImport } from './routes/_authenticated/archive'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedDiagramsIndexRouteImport } from './routes/_authenticated/diagrams/index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedDiagramsCreateRouteImport } from './routes/_authenticated/diagrams/create'
 import { Route as AuthenticatedDiagramsIdRouteImport } from './routes/_authenticated/diagrams/$id'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
-import { Route as AuthenticatedAdminAuditLogsRouteImport } from './routes/_authenticated/admin/audit-logs'
+import { Route as AuthenticatedAdminReplicationRouteImport } from './routes/_authenticated/admin/replication'
+import { Route as AuthenticatedAdminConfigRouteImport } from './routes/_authenticated/admin/config'
+import { Route as AuthenticatedAdminBackupsRouteImport } from './routes/_authenticated/admin/backups'
+import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin/audit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -44,12 +49,22 @@ const AuthenticatedArchiveRoute = AuthenticatedArchiveRouteImport.update({
   path: '/archive',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDiagramsIndexRoute =
   AuthenticatedDiagramsIndexRouteImport.update({
     id: '/diagrams/',
     path: '/diagrams/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedDiagramsCreateRoute =
   AuthenticatedDiagramsCreateRouteImport.update({
     id: '/diagrams/create',
@@ -62,26 +77,48 @@ const AuthenticatedDiagramsIdRoute = AuthenticatedDiagramsIdRouteImport.update({
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => AuthenticatedRoute,
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const AuthenticatedAdminAuditLogsRoute =
-  AuthenticatedAdminAuditLogsRouteImport.update({
-    id: '/admin/audit-logs',
-    path: '/admin/audit-logs',
-    getParentRoute: () => AuthenticatedRoute,
+const AuthenticatedAdminReplicationRoute =
+  AuthenticatedAdminReplicationRouteImport.update({
+    id: '/replication',
+    path: '/replication',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminConfigRoute =
+  AuthenticatedAdminConfigRouteImport.update({
+    id: '/config',
+    path: '/config',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminBackupsRoute =
+  AuthenticatedAdminBackupsRouteImport.update({
+    id: '/backups',
+    path: '/backups',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/archive': typeof AuthenticatedArchiveRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/admin/audit-logs': typeof AuthenticatedAdminAuditLogsRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/backups': typeof AuthenticatedAdminBackupsRoute
+  '/admin/config': typeof AuthenticatedAdminConfigRoute
+  '/admin/replication': typeof AuthenticatedAdminReplicationRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/diagrams/$id': typeof AuthenticatedDiagramsIdRoute
   '/diagrams/create': typeof AuthenticatedDiagramsCreateRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/diagrams/': typeof AuthenticatedDiagramsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -89,10 +126,14 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/archive': typeof AuthenticatedArchiveRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/admin/audit-logs': typeof AuthenticatedAdminAuditLogsRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/backups': typeof AuthenticatedAdminBackupsRoute
+  '/admin/config': typeof AuthenticatedAdminConfigRoute
+  '/admin/replication': typeof AuthenticatedAdminReplicationRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/diagrams/$id': typeof AuthenticatedDiagramsIdRoute
   '/diagrams/create': typeof AuthenticatedDiagramsCreateRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/diagrams': typeof AuthenticatedDiagramsIndexRoute
 }
 export interface FileRoutesById {
@@ -100,12 +141,17 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/archive': typeof AuthenticatedArchiveRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/admin/audit-logs': typeof AuthenticatedAdminAuditLogsRoute
+  '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/_authenticated/admin/backups': typeof AuthenticatedAdminBackupsRoute
+  '/_authenticated/admin/config': typeof AuthenticatedAdminConfigRoute
+  '/_authenticated/admin/replication': typeof AuthenticatedAdminReplicationRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/diagrams/$id': typeof AuthenticatedDiagramsIdRoute
   '/_authenticated/diagrams/create': typeof AuthenticatedDiagramsCreateRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/diagrams/': typeof AuthenticatedDiagramsIndexRoute
 }
 export interface FileRouteTypes {
@@ -113,12 +159,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/admin'
     | '/archive'
     | '/dashboard'
-    | '/admin/audit-logs'
+    | '/admin/audit'
+    | '/admin/backups'
+    | '/admin/config'
+    | '/admin/replication'
     | '/admin/users'
     | '/diagrams/$id'
     | '/diagrams/create'
+    | '/admin/'
     | '/diagrams/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -126,22 +177,31 @@ export interface FileRouteTypes {
     | '/login'
     | '/archive'
     | '/dashboard'
-    | '/admin/audit-logs'
+    | '/admin/audit'
+    | '/admin/backups'
+    | '/admin/config'
+    | '/admin/replication'
     | '/admin/users'
     | '/diagrams/$id'
     | '/diagrams/create'
+    | '/admin'
     | '/diagrams'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/admin'
     | '/_authenticated/archive'
     | '/_authenticated/dashboard'
-    | '/_authenticated/admin/audit-logs'
+    | '/_authenticated/admin/audit'
+    | '/_authenticated/admin/backups'
+    | '/_authenticated/admin/config'
+    | '/_authenticated/admin/replication'
     | '/_authenticated/admin/users'
     | '/_authenticated/diagrams/$id'
     | '/_authenticated/diagrams/create'
+    | '/_authenticated/admin/'
     | '/_authenticated/diagrams/'
   fileRoutesById: FileRoutesById
 }
@@ -188,12 +248,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedArchiveRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/diagrams/': {
       id: '/_authenticated/diagrams/'
       path: '/diagrams'
       fullPath: '/diagrams/'
       preLoaderRoute: typeof AuthenticatedDiagramsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/diagrams/create': {
       id: '/_authenticated/diagrams/create'
@@ -211,36 +285,76 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
-      path: '/admin/users'
+      path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/audit-logs': {
-      id: '/_authenticated/admin/audit-logs'
-      path: '/admin/audit-logs'
-      fullPath: '/admin/audit-logs'
-      preLoaderRoute: typeof AuthenticatedAdminAuditLogsRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/_authenticated/admin/replication': {
+      id: '/_authenticated/admin/replication'
+      path: '/replication'
+      fullPath: '/admin/replication'
+      preLoaderRoute: typeof AuthenticatedAdminReplicationRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/config': {
+      id: '/_authenticated/admin/config'
+      path: '/config'
+      fullPath: '/admin/config'
+      preLoaderRoute: typeof AuthenticatedAdminConfigRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/backups': {
+      id: '/_authenticated/admin/backups'
+      path: '/backups'
+      fullPath: '/admin/backups'
+      preLoaderRoute: typeof AuthenticatedAdminBackupsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/audit': {
+      id: '/_authenticated/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
+  AuthenticatedAdminBackupsRoute: typeof AuthenticatedAdminBackupsRoute
+  AuthenticatedAdminConfigRoute: typeof AuthenticatedAdminConfigRoute
+  AuthenticatedAdminReplicationRoute: typeof AuthenticatedAdminReplicationRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
+  AuthenticatedAdminBackupsRoute: AuthenticatedAdminBackupsRoute,
+  AuthenticatedAdminConfigRoute: AuthenticatedAdminConfigRoute,
+  AuthenticatedAdminReplicationRoute: AuthenticatedAdminReplicationRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
 interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedArchiveRoute: typeof AuthenticatedArchiveRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedAdminAuditLogsRoute: typeof AuthenticatedAdminAuditLogsRoute
-  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedDiagramsIdRoute: typeof AuthenticatedDiagramsIdRoute
   AuthenticatedDiagramsCreateRoute: typeof AuthenticatedDiagramsCreateRoute
   AuthenticatedDiagramsIndexRoute: typeof AuthenticatedDiagramsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedArchiveRoute: AuthenticatedArchiveRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedAdminAuditLogsRoute: AuthenticatedAdminAuditLogsRoute,
-  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedDiagramsIdRoute: AuthenticatedDiagramsIdRoute,
   AuthenticatedDiagramsCreateRoute: AuthenticatedDiagramsCreateRoute,
   AuthenticatedDiagramsIndexRoute: AuthenticatedDiagramsIndexRoute,

@@ -15,6 +15,7 @@ import { LastBackupCard } from '@/components/dashboard/admin/LastBackupCard';
 import { ReplicationTargetsCard } from '@/components/dashboard/admin/ReplicationTargetsCard';
 import { AdminQuickActions } from '@/components/dashboard/admin/AdminQuickActions';
 import { RecentAuditTable } from '@/components/dashboard/admin/RecentAuditTable';
+import { AdminLayout } from '@/pages/admin/AdminLayout';
 
 const ADMIN_REFETCH_INTERVAL = 30_000;
 
@@ -40,12 +41,13 @@ export const AdminDashboard = () => {
   }, [navigate]);
 
   const handleViewAuditLogs = useCallback(() => {
-    navigate({ to: '/admin/audit-logs' });
+    navigate({ to: '/admin/audit' });
   }, [navigate]);
 
   const lastBackup = backups?.[0];
 
   return (
+    <AdminLayout>
     <Box>
       <SectionHeader title="لوحة إدارة النظام" />
 
@@ -73,5 +75,6 @@ export const AdminDashboard = () => {
 
       <RecentAuditTable entries={auditLogs?.data ?? []} isLoading={auditLoading} />
     </Box>
+    </AdminLayout>
   );
 };

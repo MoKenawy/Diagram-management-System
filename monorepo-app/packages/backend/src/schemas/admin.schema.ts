@@ -1,5 +1,6 @@
 // src/schemas/admin.schema.ts
 import { z } from 'zod';
+import { isoOrDate } from './shared/date.schema';
 
 export const updateConfigSchema = z.record(z.string(), z.string());
 
@@ -8,8 +9,8 @@ export const auditLogsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
   userId: z.string().optional(),
   action: z.string().optional(),
-  from: z.string().datetime({ offset: true }).optional(),
-  to: z.string().datetime({ offset: true }).optional(),
+  from: isoOrDate.optional(),
+  to: isoOrDate.optional(),
 });
 
 export const restoreSchema = z.object({

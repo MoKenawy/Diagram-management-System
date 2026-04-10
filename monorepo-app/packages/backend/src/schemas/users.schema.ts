@@ -42,7 +42,7 @@ export const resetPasswordSchema = z.object({
 export const usersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
-  role: z.enum(['ENGINEER', 'DC', 'MANAGER', 'ADMIN']).optional(),
+  role: z.enum(['ENGINEER', 'DC', 'MANAGER', 'ADMIN', '']).optional(),
   departmentId: z.string().optional(),
   isActive: z
     .string()

@@ -12,7 +12,6 @@ import {
     useTheme,
     Button,
 } from '@mui/material';
-import { AppShell } from '@/components/layout/AppShell';
 import { useAuthStore } from '@/stores/authStore';
 import { useDiagramDetail } from '@/hooks/queries/useDiagramDetailQueries';
 import { FileViewer } from '@/components/diagrams/FileViewer';
@@ -80,7 +79,7 @@ const DiagramPage = () => {
 
     if (isLoading) {
         return (
-            <AppShell>
+            <Box>
                 <Box>
                     <Skeleton width={100} height={36} sx={{ mb: 2 }} />
                     <Skeleton width="60%" height={48} />
@@ -93,19 +92,19 @@ const DiagramPage = () => {
                         />
                     </Box>
                 </Box>
-            </AppShell>
+            </Box>
         );
     }
 
     if (isError || !diagram) {
         return (
-            <AppShell>
+            <Box>
                 <Box display="flex" flexDirection="column" alignItems="center" py={10}>
                     <Typography variant="h6" color="text.secondary">
                         لم يتم العثور على اللوحة
                     </Typography>
                 </Box>
-            </AppShell>
+            </Box>
         );
     }
 
@@ -185,7 +184,7 @@ const DiagramPage = () => {
 
     if (isMobile) {
         return (
-            <AppShell>
+            <Box>
                 <DiagramPageHeader diagram={diagram} onBack={handleBack} />
 
                 {/* Viewer */}
@@ -207,13 +206,13 @@ const DiagramPage = () => {
                 <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
                     {sidebarContent}
                 </Paper>
-            </AppShell>
+            </Box>
         );
     }
 
     // Desktop: 2-column
     return (
-        <AppShell>
+        <Box>
             <DiagramPageHeader diagram={diagram} onBack={handleBack} />
 
             <Box display="flex" gap={3}>
@@ -251,7 +250,7 @@ const DiagramPage = () => {
                     {sidebarContent}
                 </Paper>
             </Box>
-        </AppShell>
+        </Box>
     );
 };
 
