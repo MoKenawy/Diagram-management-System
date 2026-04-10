@@ -1,6 +1,6 @@
 // src/hooks/queries/useDiagramDetailQueries.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 import { diagramKeys } from './useDiagramQueries';
 import type {
   DiagramDetailResponse,

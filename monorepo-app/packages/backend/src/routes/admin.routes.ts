@@ -25,7 +25,9 @@ router.get('/audit-logs', validate(auditLogsQuerySchema, 'query'), ctrl.getAudit
 
 // Backups
 router.get('/backups', ctrl.getBackups);
+
 router.post('/backups', ctrl.createBackup);
+
 router.post('/backups/:id/restore', validate(restoreSchema, 'body'), ctrl.restoreBackup);
 
 // Replication

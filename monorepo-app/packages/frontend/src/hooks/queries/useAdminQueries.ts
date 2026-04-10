@@ -6,7 +6,7 @@ import {
   triggerBackup,
   getReplicationTargets,
   getSystemConfig,
-} from '@/services/api/adminService';
+} from '@/api/services/adminService';
 import type { AuditLogListParams } from '@/types/index';
 
 export const adminKeys = {

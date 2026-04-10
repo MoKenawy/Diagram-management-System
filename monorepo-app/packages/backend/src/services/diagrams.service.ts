@@ -1,6 +1,6 @@
 // src/services/diagrams.service.ts
 import { prisma } from '../lib/prisma';
-import { Prisma, FileFormat, PrismaClient } from '@prisma/client';
+import { Prisma, FileFormat, PrismaClient, TargetType, AccessLevel, AccessPolicy } from '@prisma/client';
 import {
   CreateDiagramInput,
   UpdateDiagramInput,
@@ -405,6 +405,13 @@ export async function getVersionById(versionId: string) {
 
 // ─── Access Rules ────────────────────────────────────────────────
 
+export async function getUserDiagramAccess(userId: string, diagramId: string[]) {
+
+
+}
+          
+
+
 export async function getAccessRules(diagramId: string) {
   const rules = await prisma.diagramAccess.findMany({
     where: { diagramId },
@@ -453,13 +460,15 @@ export async function checkDuplicateAccessRule(
   diagramId: string,
   targetType: string,
   targetId: string,
-  policy: string
+  policy: string,
+  accessLevel: string
 ) {
   const where: Prisma.DiagramAccessWhereInput = {
     diagramId,
     targetType: targetType as Prisma.EnumTargetTypeFilter['equals'],
     targetId,
     policy: policy as Prisma.EnumAccessPolicyFilter['equals'],
+    accessLevel: accessLevel as Prisma.EnumAccessLevelFilter['equals'],
   };
 
   return prisma.diagramAccess.findFirst({ where });
@@ -475,10 +484,10 @@ export async function createAccessRule(data: {
 }) {
   const createData: Prisma.DiagramAccessCreateInput = {
     diagram: { connect: { id: data.diagramId } },
-    targetType: data.targetType as 'USER' | 'DEPARTMENT',
+    targetType: data.targetType as TargetType,
     targetId: data.targetId,
-    accessLevel: data.accessLevel as 'VIEW' | 'EDIT' | 'ADMIN',
-    policy: data.policy as 'ALLOW' | 'DENY',
+    accessLevel: data.accessLevel as AccessLevel,
+    policy: data.policy as AccessPolicy,
     grantedBy: { connect: { id: data.grantedById } },
   };
 

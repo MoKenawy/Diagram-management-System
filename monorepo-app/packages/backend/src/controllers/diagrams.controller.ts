@@ -14,6 +14,7 @@ import type {
   ListDiagramsQuery,
   CreateAccessRuleInput,
 } from '../schemas/diagrams.schema';
+import { AccessLevel } from '@prisma/client';
 
 // ─── Response Types ──────────────────────────────────────────────
 
@@ -121,11 +122,11 @@ export async function listDiagrams(
     const userRole: string = req.user!.role;
     const userId: string = req.user!.id;
     const userDeptId: string | null = req.user!.departmentId;
-
+    const accessLevel : AccessLevel = AccessLevel.VIEW;
     let accessibleIds: string[] | undefined;
 
     if (userRole === 'ENGINEER') {
-      accessibleIds = await getAccessibleDiagramIds(prisma, userId, userDeptId);
+      accessibleIds = await getAccessibleDiagramIds(prisma, userId, userDeptId, accessLevel);
     }
 
     const result = await diagramsService.listDiagrams(query, accessibleIds);
@@ -463,29 +464,30 @@ export async function createAccessRule(
     const { targetType, targetId, accessLevel, policy } =
       extractValidatedBody<CreateAccessRuleInput>(req);
     const userId: string = req.user!.id;
-
+      
     const exists: boolean = await diagramsService.diagramExists(id);
     if (!exists) {
       sendError(res, 404, 'NOT_FOUND', 'Diagram not found');
       return;
     }
     // checkDuplicateAccessRule returns the first record 
-    const duplicate = await diagramsService.checkDuplicateAccessRule(
-      id,
-      targetType,
-      targetId,
-      policy
-    );
+    // const duplicate = await diagramsService.checkDuplicateAccessRule(
+    //   id,
+    //   targetType,
+    //   targetId,
+    //   policy,
+    //   accessLevel
+    // );
 
-    if (duplicate) {
-      sendError(
-        res,
-        409,
-        'DUPLICATE_RULE',
-        'An identical access rule already exists for this target and policy'
-      );
-      return;
-    }
+    // if (duplicate) {
+    //   sendError(
+    //     res,
+    //     409,
+    //     'DUPLICATE_RULE',
+    //     'An identical access rule already exists for this target and policy'
+    //   );
+    //   return;
+    // }
 
     const rule = await diagramsService.createAccessRule({
       diagramId: id,

@@ -18,7 +18,7 @@ import {
   Refresh,
 } from '@mui/icons-material';
 import * as pdfjsLib from 'pdfjs-dist';
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 import { PDF_VIEWER_ZOOM_STEP, PDF_VIEWER_MIN_ZOOM, PDF_VIEWER_MAX_ZOOM} from '@/config/api';
 import { getDownloadUrl } from '@/utils/diagramFormatUtils';
 

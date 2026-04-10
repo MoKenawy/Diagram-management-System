@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Box, CircularProgress, Button, Typography } from '@mui/material';
 import { Refresh } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
-import { api } from '@/services/api/authService';
+import { privateApi as api } from '@/api/axiosClient';
 import { getDownloadUrl } from '@/utils/diagramFormatUtils';
 
 interface SvgViewerProps {

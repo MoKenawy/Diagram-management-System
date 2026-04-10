@@ -4,8 +4,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { lazy, Suspense } from 'react';
 import { LoginPageSkeleton } from '@/components/login/LoginPageSkeleton';
 
+
+
 export const Route = createFileRoute('/login')({
   beforeLoad: () => {
+
     const { user } = useAuthStore.getState();
     if (user) {
       throw redirect({ to: '/' });

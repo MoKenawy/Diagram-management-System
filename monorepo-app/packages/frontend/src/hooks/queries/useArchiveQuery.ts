@@ -1,6 +1,6 @@
 // src/hooks/queries/useArchiveQuery.ts
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { getDiagrams } from '@/services/api/diagramService';
+import { getDiagrams } from '@/api/services/diagramService';
 import { diagramKeys } from './useDiagramQueries';
 import type { DiagramListParams } from '@/types/index';
 import type { ArchiveSearchParams } from '@/validations/archiveSearchSchema'; // Correct path

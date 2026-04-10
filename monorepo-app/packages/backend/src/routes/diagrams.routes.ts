@@ -13,6 +13,7 @@ import {
   createAccessRuleSchema,
 } from '../schemas/diagrams.schema';
 import * as ctrl from '../controllers/diagrams.controller';
+import { AccessLevel } from '@prisma/client';
 
 const router = Router();
 
@@ -34,24 +35,28 @@ router.get(
   ctrl.listDiagrams
 );
 
-router.get('/:id', checkDiagramAccess('id'), ctrl.getDiagram);
+router.get('/:id', checkDiagramAccess(AccessLevel.VIEW,'id'), ctrl.getDiagram);
 
 router.patch(
   '/:id',
-  authorize('DC', 'ADMIN'),
+  authorize('DC', 'ADMIN', 'ENGINEER'),
+  checkDiagramAccess(AccessLevel.UPDATE,'id'),
   validate(updateDiagramSchema, 'body'),
   ctrl.updateDiagram
 );
 
-router.delete('/:id', authorize('DC', 'ADMIN'), ctrl.deleteDiagram);
+router.delete('/:id', authorize('DC', 'ADMIN'),
+checkDiagramAccess(AccessLevel.DELETE,'id'),
+ctrl.deleteDiagram);
 
 // ── Versions ─────────────────────────────────────────────────
 
-router.get('/:id/versions', checkDiagramAccess('id'), ctrl.getVersions);
+router.get('/:id/versions', checkDiagramAccess(AccessLevel.VIEW,'id'), ctrl.getVersions);
 
 router.post(
   '/:id/versions',
   authorize('DC', 'ADMIN'),
+  checkDiagramAccess(AccessLevel.CREATE,'id'),
   uploadSingle('file'),
   validate(createVersionSchema, 'body'),
   ctrl.createVersion
@@ -59,27 +64,32 @@ router.post(
 
 router.get(
   '/:id/versions/:versionId/file',
-  checkDiagramAccess('id'),
+  checkDiagramAccess(AccessLevel.VIEW,'id'),
   ctrl.downloadVersionFile
 );
 
 router.get(
   '/:id/versions/:versionId/thumbnail',
-  checkDiagramAccess('id'),
+  checkDiagramAccess(AccessLevel.VIEW,'id'),
   ctrl.getVersionThumbnail
 );
 
 // ── Access Rules ─────────────────────────────────────────────
 
-router.get('/:id/access', authorize('DC', 'ADMIN'), ctrl.getAccessRules);
+router.get('/:id/access', authorize('DC', 'ADMIN'),
+checkDiagramAccess(AccessLevel.ADMIN,'id'),
+ctrl.getAccessRules);
 
 router.post(
   '/:id/access',
   authorize('DC', 'ADMIN'),
+  checkDiagramAccess(AccessLevel.ADMIN, 'id'),
   validate(createAccessRuleSchema, 'body'),
   ctrl.createAccessRule
 );
 
-router.delete('/:id/access/:ruleId', authorize('DC','ADMIN'), ctrl.deleteAccessRule);
+router.delete('/:id/access/:ruleId', authorize('DC','ADMIN'),
+checkDiagramAccess(AccessLevel.ADMIN, 'id'),
+ctrl.deleteAccessRule);
 
 export default router;

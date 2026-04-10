@@ -28,8 +28,10 @@ export type FileFormat = (typeof FileFormat)[keyof typeof FileFormat];
 
 export const AccessLevel = {
   VIEW: 'VIEW',
-  EDIT: 'EDIT',
   ADMIN: 'ADMIN',
+  UPDATE: 'UPDATE',
+  CREATE: 'CREATE',
+  DELETE: 'DELETE',
 } as const;
 export type AccessLevel = (typeof AccessLevel)[keyof typeof AccessLevel];
 

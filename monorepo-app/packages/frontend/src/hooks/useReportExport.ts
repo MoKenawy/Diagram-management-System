@@ -1,6 +1,6 @@
 // src/hooks/useReportExport.ts
 import { useCallback, useState } from 'react';
-import { exportReport } from '@/services/api/reportService';
+import { exportReport } from '@/api/services/reportService';
 import type { ReportDateParams, ReportExportFormat } from '@/types/index';
 
 export const useReportExport = (dateParams: ReportDateParams) => {

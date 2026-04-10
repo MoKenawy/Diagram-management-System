@@ -118,7 +118,9 @@ export const AccessRuleForm = ({ diagramId, onSuccess, onCancel }: AccessRuleFor
           sx={{ borderRadius: 2 }}
         >
           <MenuItem value="VIEW">عرض</MenuItem>
-          <MenuItem value="EDIT">تعديل</MenuItem>
+          <MenuItem value="UPDATE">تعديل</MenuItem>
+          <MenuItem value="CREATE">إنشاء</MenuItem>
+          <MenuItem value="DELETE">حذف</MenuItem>
           <MenuItem value="ADMIN">مدير</MenuItem>
         </Select>
       </FormControl>
