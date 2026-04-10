@@ -43,7 +43,7 @@ export const AppShell = ({ children }: AppShellProps) => {
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" disableGutters>
         {children}
       </Container>
     </Box>

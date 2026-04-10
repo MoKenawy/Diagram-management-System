@@ -1,7 +1,6 @@
 // src/pages/dashboard/DashboardPage.tsx
 import { Suspense, lazy } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { AppShell } from '@/components/layout/AppShell';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { Role } from '@/types/index';
 
@@ -35,14 +34,9 @@ const DashboardPage = () => {
   return (
 
     <div>
-      <p>
-        Welcome to the Dashboard! Your role is: <strong>{role}</strong>
-      </p>
-    <AppShell>
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardComponent />
       </Suspense>
-    </AppShell>
       </div>
 
   );

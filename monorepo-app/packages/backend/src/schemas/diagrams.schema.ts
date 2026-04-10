@@ -1,5 +1,6 @@
 // src/schemas/diagrams.schema.ts
 import { z } from 'zod';
+import { isoOrDate } from './shared/date.schema';
 
 // ─── Create Diagram (with first version) ────────────────────────
 export const createDiagramSchema = z.object({
@@ -51,17 +52,6 @@ export const createVersionSchema = z.object({
 // Helper: accept a single value or an array, always normalize to array
 const toArray = <T extends z.ZodTypeAny>(schema: T) =>
   z.union([schema.transform((v) => [v]), schema.array()]).optional();
-
-
-const isoOrDate = z.string().refine((val) => {
-  // Accept YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
-
-  // Accept ISO
-  return !isNaN(Date.parse(val));
-}, {
-  message: 'Must be a valid date (YYYY-MM-DD or ISO)',
-});
 
 
 

@@ -3,7 +3,6 @@ import { useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Box, Fab } from '@mui/material';
 import { Add } from '@mui/icons-material';
-import { AppShell } from '@/components/layout/AppShell';
 import { useAuthStore } from '@/stores/authStore';
 import { useArchiveSearch } from '@/hooks/useArchiveSearch';
 import { useArchiveQuery } from '@/hooks/queries/useArchiveQuery';
@@ -105,7 +104,7 @@ const ArchivePage = () => {
   };
 
   return (
-    <AppShell>
+    <Box display="flex">
       <Box display="flex" gap={3}>
         {/* Sidebar Filters */}
         <DiagramFilters
@@ -173,7 +172,8 @@ const ArchivePage = () => {
           <Add />
         </Fab>
       )}
-    </AppShell>
+    </Box>
+
   );
 };
 
