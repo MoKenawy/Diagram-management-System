@@ -33,8 +33,6 @@ enum TargetType {
   DEPARTMENT
 }
 
-
-
 enum AccessPolicy {
   ALLOW
   DENY
@@ -60,26 +58,43 @@ enum SyncStatus {
   NEVER
 }
 
+// --- NEW ENUMS ---
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum CatalogStatus {
+  DRAFT
+  PUBLISHED
+  REVISED
+  ARCHIVED
+}
+
 // ---------------------------------------------------------
 // MODELS
 // ---------------------------------------------------------
 
 model Department {
-  id             String     @id @default(cuid())
-  nameAr   String
-  nameEn   String
-  code     String    @unique
-  isActive Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  nameAr    String
+  nameEn    String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  users    User[]
-  diagrams Diagram[]
+  users           User[]
+  diagrams        Diagram[]
 }
 
 model User {
-  id                  String     @id @default(cuid())
+  id                  String    @id @default(cuid())
   username            String    @unique
   fullName            String
   email               String?
@@ -94,33 +109,211 @@ model User {
   updatedAt           DateTime  @updatedAt
 
   // Relations
-  department          Department?     @relation(fields: [departmentId], references: [id])
-  uploadedVersions    DiagramVersion[]
-  grantedAccesses     DiagramAccess[] @relation("AccessGrantedBy")
-  auditLogs           AuditLog[]
-  triggeredBackups    BackupRecord[]
-  updatedConfigs      SystemConfig[]
+  department             Department?       @relation(fields: [departmentId], references: [id])
+  uploadedVersions       DiagramVersion[]
+  grantedAccesses        DiagramAccess[]   @relation("AccessGrantedBy")
+  auditLogs              AuditLog[]
+  triggeredBackups       BackupRecord[]
+  updatedConfigs         SystemConfig[]
+  
+  // NEW RELATIONS
+  managedProjects        Project[]         @relation("ProjectManager")
+  createdCatalogs        Catalog[]         @relation("CatalogCreator")
+  catalogRevisions       CatalogRevision[] @relation("CatalogRevisionCreator")
+  grantedCatalogAccesses CatalogAccess[]   @relation("CatalogAccessGranter")
 }
 
+// --- NEW MODEL: LOCATION ---
+model Location {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  nameAr      String
+  nameEn      String
+  parentId    String?
+  parent      Location?  @relation("LocationTree", fields: [parentId], references: [id])
+  children    Location[] @relation("LocationTree")
+  depth       Int        @default(0)
+  path        String     @default("/") // materialized path: /cuid1/cuid2/
+  coordinates String?
+  address     String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  projects    Project[]
+  diagrams    Diagram[]
+
+  @@index([parentId])
+  @@index([path])
+  @@index([depth])
+}
+
+// --- NEW MODEL: CATEGORY ---
+model Category {
+  id        String     @id @default(cuid())
+  code      String     @unique
+  nameAr    String
+  nameEn    String
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  depth     Int        @default(0)
+  path      String     @default("/")
+  icon      String?
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  diagrams  DiagramCategory[]
+
+  @@index([parentId])
+  @@index([path])
+}
+
+// --- NEW MODEL: PROJECT ---
+model Project {
+  id          String        @id @default(cuid())
+  projectCode String        @unique
+  name        String        @unique
+  nameAr      String?
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  locationId  String?
+  location    Location?     @relation(fields: [locationId], references: [id])
+  managerId   String?
+  manager     User?         @relation("ProjectManager", fields: [managerId], references: [id])
+  startDate   DateTime?
+  endDate     DateTime?
+  clientName  String?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  diagrams    Diagram[]
+  catalogs    Catalog[]
+}
+
+// --- MODIFIED MODEL: DIAGRAM ---
 model Diagram {
-  id             String     @id @default(cuid())
+  id               String   @id @default(cuid())
   title            String
   description      String?
   departmentId     String
-  currentVersionId String?      // Plain String, NOT a FK relation (handled in application logic)
-  isActive         Boolean   @default(true)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  projectId        String   // NEW: Required relation to Project
+  locationId       String?  // NEW: Optional specific location
+  currentVersionId String?  // Plain String, NOT a FK relation
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  department       Department       @relation(fields: [departmentId], references: [id])
+  department       Department        @relation(fields: [departmentId], references: [id])
+  project          Project           @relation(fields: [projectId], references: [id]) // NEW
+  location         Location?         @relation(fields: [locationId], references: [id]) // NEW
   versions         DiagramVersion[]
   accessRules      DiagramAccess[]
   tags             DiagramTag[]
+  categories       DiagramCategory[] // NEW
+  catalogs         CatalogDiagram[]  // NEW
 }
 
+// --- NEW MODEL: DIAGRAM_CATEGORY (Junction) ---
+model DiagramCategory {
+  id         String   @id @default(cuid())
+  diagramId  String
+  diagram    Diagram  @relation(fields: [diagramId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@unique([diagramId, categoryId])
+}
+
+// --- NEW MODEL: CATALOG ---
+model Catalog {
+  id              String        @id @default(cuid())
+  catalogNumber   String        @unique
+  title           String
+  titleAr         String?
+  description     String?
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id])
+  revisionNumber  String        @default("Rev-00")
+  status          CatalogStatus @default(DRAFT)
+  coverDocPath    String?
+  compiledPdfPath String?
+  createdById     String
+  createdBy       User          @relation("CatalogCreator", fields: [createdById], references: [id])
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  diagrams        CatalogDiagram[]
+  revisions       CatalogRevision[]
+  accessRules     CatalogAccess[]
+}
+
+// --- NEW MODEL: CATALOG_DIAGRAM (Junction with Order) ---
+model CatalogDiagram {
+  id            String   @id @default(cuid())
+  catalogId     String
+  catalog       Catalog  @relation(fields: [catalogId], references: [id])
+  diagramId     String
+  diagram       Diagram  @relation(fields: [diagramId], references: [id])
+  sequenceOrder Int
+  sectionTitle  String?
+  addedAt       DateTime @default(now())
+
+  @@unique([catalogId, diagramId])
+  @@index([catalogId, sequenceOrder])
+}
+
+// --- NEW MODEL: CATALOG_REVISION ---
+model CatalogRevision {
+  id              String   @id @default(cuid())
+  catalogId       String
+  catalog         Catalog  @relation(fields: [catalogId], references: [id])
+  revisionNumber  String
+  changeNotes     String?
+  compiledPdfPath String?
+  createdById     String
+  createdBy       User     @relation("CatalogRevisionCreator", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+// --- NEW MODEL: CATALOG_ACCESS (Matches DiagramAccess) ---
+model CatalogAccess {
+  id          String       @id @default(cuid())
+  catalogId   String
+  targetType  TargetType
+  targetId    String
+  accessLevel AccessLevel
+  policy      AccessPolicy
+  grantedAt   DateTime     @default(now())
+  grantedById String
+
+  // Relations
+  catalog   Catalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  grantedBy User    @relation("CatalogAccessGranter", fields: [grantedById], references: [id])
+
+  // One rule per target+action slot — safe to upsert against
+  @@unique([catalogId, targetType, targetId, accessLevel])
+  @@index([targetType, targetId, catalogId])
+}
+
+
+// ---------------------------------------------------------
+// EXISTING UNCHANGED MODELS
+// ---------------------------------------------------------
+
 model DiagramVersion {
-  id             String     @id @default(cuid())
+  id               String     @id @default(cuid())
   diagramId        String
   versionNumber    Int
   revisionLabel    String
@@ -140,7 +333,6 @@ model DiagramVersion {
   @@unique([diagramId, versionNumber])
 }
 
-
 model DiagramAccess {
   id          String       @id @default(cuid())
   diagramId   String
@@ -155,13 +347,12 @@ model DiagramAccess {
   diagram   Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
   grantedBy User    @relation("AccessGrantedBy", fields: [grantedById], references: [id])
 
-  // One rule per target+action slot — safe to upsert against
   @@unique([diagramId, targetType, targetId, accessLevel])
   @@index([targetType, targetId, diagramId])
 }
 
 model DiagramTag {
-  id          String     @id @default(cuid())
+  id        String  @id @default(cuid())
   diagramId String
   tag       String
 
@@ -172,7 +363,7 @@ model DiagramTag {
 }
 
 model AuditLog {
-  id          String     @id @default(cuid())
+  id         String   @id @default(cuid())
   userId     String?
   action     String
   targetType String?
@@ -186,7 +377,7 @@ model AuditLog {
 }
 
 model BackupRecord {
-  id          String     @id @default(cuid())
+  id            String       @id @default(cuid())
   filePath      String
   sizeBytes     BigInt
   status        BackupStatus
@@ -212,7 +403,7 @@ model ReplicationTarget {
 }
 
 model SystemConfig {
-  key          String     @id @default(cuid())
+  key         String   @id @default(cuid())
   value       String
   updatedAt   DateTime @updatedAt
   updatedById String?
