@@ -1,6 +1,6 @@
 // src/controllers/diagrams.controller.ts
 import type { Request, Response, NextFunction } from 'express';
-import fs from 'fs';
+import fs, { PathLike } from 'fs';
 import * as diagramsService from '../services/diagrams.service';
 import { logAction, getClientIp } from '../services/audit.service';
 import { getAccessibleDiagramIds } from '../utils/accessResolver';
@@ -15,7 +15,8 @@ import type {
   CreateAccessRuleInput,
 } from '../schemas/diagrams.schema';
 import { AccessLevel } from '@prisma/client';
-
+import { logger } from '../utils/logger';
+import { STORAGE_BASE_PATH } from '../config';
 // ─── Response Types ──────────────────────────────────────────────
 
 interface ErrorResponseBody {
@@ -406,18 +407,27 @@ export async function getVersionThumbnail(
       sendError(res, 404, 'NOT_FOUND', 'Version not found');
       return;
     }
+    
+    let localThumbnailPath : PathLike = version.thumbnailPath ? version.thumbnailPath.toString() : '';
+
+    if ( process.env.NODE_ENV === 'development' && version.thumbnailPath) {
+       localThumbnailPath = version.thumbnailPath.toString().replace('/app', STORAGE_BASE_PATH.toString());
+       localThumbnailPath = localThumbnailPath as PathLike;
+    }
+
+
 
     if (!version.thumbnailPath) {
       sendError(res, 404, 'THUMBNAIL_NOT_FOUND', 'No thumbnail available for this version');
       return;
     }
 
-    if (!fs.existsSync(version.thumbnailPath)) {
+    if (!fs.existsSync(localThumbnailPath)) {
       sendError(res, 404, 'THUMBNAIL_NOT_FOUND', 'Thumbnail file not found on disk');
       return;
     }
 
-    const stat: fs.Stats = fs.statSync(version.thumbnailPath);
+    const stat: fs.Stats = fs.statSync(localThumbnailPath);
 
     res.writeHead(200, {
       'Content-Type': 'image/jpeg',
@@ -425,7 +435,7 @@ export async function getVersionThumbnail(
       'Cache-Control': 'public, max-age=86400',
     });
 
-    fs.createReadStream(version.thumbnailPath).pipe(res);
+    fs.createReadStream(localThumbnailPath).pipe(res);
   } catch (err: unknown) {
     next(err);
   }

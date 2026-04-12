@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { spawn } from 'child_process';
 
 const THUMB_WIDTH = 400;
 const THUMB_HEIGHT = 300;
@@ -56,101 +57,62 @@ export async function generateThumbnail(
   }
 }
 
-// ─── PDF Thumbnail (using @napi-rs/canvas) ──────────────────────
 
-async function generatePdfThumbnail(
+export async function generatePdfThumbnail(
   filePath: string,
   outputFile: string
-): Promise<string | null> {
-  try {
-    // Use @napi-rs/canvas for drawing (zero system deps)
-    const { createCanvas } = await import('@napi-rs/canvas');
-    
-    // Create canvas with thumbnail dimensions
-    const canvas = createCanvas(THUMB_WIDTH, THUMB_HEIGHT);
-    const ctx = canvas.getContext('2d');
+): Promise<string> {
+  const outputBase = outputFile.replace(/\.(jpg|jpeg|png)$/, '');
 
-    // ─── Draw professional PDF thumbnail ──────────────────────
-    
-    // 1. Background gradient
-    const gradient = ctx.createLinearGradient(0, 0, THUMB_WIDTH, THUMB_HEIGHT);
-    gradient.addColorStop(0, '#f8fafc');
-    gradient.addColorStop(1, '#e2e8f0');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, THUMB_WIDTH, THUMB_HEIGHT);
+  return new Promise((resolve, reject) => {
+    const args = [
+      '-jpeg',
+      '-jpegopt', 'quality=90',
+      '-r', '150',
+      '-f', '1',
+      '-singlefile',
+      '-scale-to', '512',
+      filePath,
+      outputBase,
+    ];
 
-    // 2. PDF document shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 4;
+    const proc = spawn('pdftoppm', args);
 
-    // 3. PDF document (white paper)
-    const docWidth = THUMB_WIDTH * 0.7;
-    const docHeight = THUMB_HEIGHT * 0.6;
-    const docX = (THUMB_WIDTH - docWidth) / 2;
-    const docY = (THUMB_HEIGHT - docHeight) / 2 - 10;
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(docX, docY, docWidth, docHeight);
-    
-    // 4. Document border
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(docX, docY, docWidth, docHeight);
+    let stderr = '';
 
-    // 5. Folded corner effect
-    ctx.beginPath();
-    ctx.moveTo(docX + docWidth - 20, docY);
-    ctx.lineTo(docX + docWidth, docY);
-    ctx.lineTo(docX + docWidth, docY + 20);
-    ctx.closePath();
-    ctx.fillStyle = '#f1f5f9';
-    ctx.fill();
-    ctx.stroke();
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
 
-    // 6. Remove shadow for text
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
+    const timeout = setTimeout(() => {
+      proc.kill();
+      reject(new Error('Thumbnail generation timeout'));
+    }, 10000);
 
-    // 7. PDF icon/text
-    ctx.fillStyle = '#3b82f6';
-    ctx.font = 'bold 28px Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('PDF', THUMB_WIDTH / 2, docY + docHeight / 2);
+    proc.on('close', async (code) => {
+      clearTimeout(timeout);
 
-    // 8. Page count indicator (try to get actual page count)
-    try {
-      const { PDFDocument } = await import('pdf-lib');
-      const pdfBytes = await fs.promises.readFile(filePath);
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-      const pageCount = pdfDoc.getPageCount();
-      
-      ctx.fillStyle = '#64748b';
-      ctx.font = '12px Arial, sans-serif';
-      ctx.fillText(`${pageCount} page${pageCount !== 1 ? 's' : ''}`, THUMB_WIDTH / 2, docY + docHeight + 20);
-    } catch {
-      // If pdf-lib fails, show file size
-      const stats = await fs.promises.stat(filePath);
-      const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(1);
-      ctx.fillStyle = '#64748b';
-      ctx.font = '12px Arial, sans-serif';
-      ctx.fillText(`${fileSizeMB} MB`, THUMB_WIDTH / 2, docY + docHeight + 20);
-    }
+      if (code !== 0) {
+        return reject(new Error(`pdftoppm failed: ${stderr}`));
+      }
 
-    // 9. Save as JPEG
-    const buffer = await canvas.encode('jpeg', 85);
-    await fs.promises.writeFile(outputFile, buffer);
+      const generated = `${outputBase}.jpg`;
 
-    return outputFile;
-  } catch (error) {
-    console.error('[thumbnail] PDF thumbnail generation failed:', error);
-    
-    // Fallback: create a very simple thumbnail
-    return await generatePdfThumbnailFallback(filePath, outputFile);
-  }
+      try {
+        await fs.promises.access(generated);
+        resolve(generated);
+      } catch {
+        reject(new Error('Thumbnail not generated'));
+          // Fallback: create a very simple thumbnail
+          return await generatePdfThumbnailFallback(filePath, outputFile);
+      }
+    });
+  });
 }
+
+
+// ─── PDF Thumbnail (using @napi-rs/canvas) ──────────────────────
+
 
 /**
  * Fallback PDF thumbnail (minimal)

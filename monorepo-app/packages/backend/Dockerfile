@@ -12,6 +12,10 @@ RUN cd packages/backend && npx prisma generate && npm run build
 FROM node:24-alpine
 WORKDIR /app
 
+
+# Install Poppler (THIS IS THE KEY ADDITION)
+RUN apk add --no-cache poppler-utils
+
 # 1. Copy dependencies and built code
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/backend/dist ./dist
@@ -26,6 +30,10 @@ RUN mkdir -p ./output
 # Make sure this file exists in your packages/backend folder on Windows!
 COPY packages/backend/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+
+# Optional: verify Poppler is installed (good for debugging)
+RUN pdftoppm -v
 
 EXPOSE 3000
 
