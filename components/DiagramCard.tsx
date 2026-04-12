@@ -9,8 +9,13 @@ interface DiagramCardProps {
   diagram: DiagramSummary;
 }
 
+function isSvgUrl(url: string): boolean {
+  return url.split('?')[0].toLowerCase().endsWith('.svg');
+}
+
 export function DiagramCard({ diagram }: DiagramCardProps) {
   const { t, lang } = useLanguage();
+  const isSvg = diagram.thumbnailUrl ? isSvgUrl(diagram.thumbnailUrl) : false;
 
   return (
     <Link
@@ -23,7 +28,12 @@ export function DiagramCard({ diagram }: DiagramCardProps) {
           <img
             src={diagram.thumbnailUrl}
             alt={diagram.title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className={[
+              'h-full w-full transition-transform duration-300 group-hover:scale-105',
+              isSvg
+                ? 'object-contain p-2'   // SVG: contain + padding so it doesn't touch edges
+                : 'object-cover',         // Raster: fill the card
+            ].join(' ')}
             loading="lazy"
           />
         ) : (
