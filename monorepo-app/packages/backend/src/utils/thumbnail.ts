@@ -12,14 +12,15 @@ const THUMB_HEIGHT = 300;
  * Generates a 400×300 JPEG thumbnail for the given file.
  * Uses Redis/BullMQ for job queuing (unchanged).
  */
-export async function generateThumbnail(
+export async function 
+generateThumbnail(
   filePath: string,
   fileFormat: string,
   outputDir: string
 ): Promise<string | null> {
   await fs.promises.mkdir(outputDir, { recursive: true });
 
-  const outputFile = path.join(outputDir, `${uuidv4()}_thumb.jpg`);
+  const outputFile = path.join(outputDir, `${uuidv4()}_thumb`);
 
   try {
     switch (fileFormat) {
@@ -152,20 +153,35 @@ async function generateImageThumbnail(
   filePath: string,
   outputFile: string
 ): Promise<string> {
+  const JPEGOutputFile = outputFile.replace(/\.(jpg|jpeg|png)$/i, '.jpg');
+
   await sharp(filePath)
     .resize(THUMB_WIDTH, THUMB_HEIGHT, {
       fit: 'cover',
       position: 'top',
     })
     .jpeg({ quality: 80 })
-    .toFile(outputFile);
+    .toFile(JPEGOutputFile);
 
-  return outputFile;
+  return JPEGOutputFile;
 }
 
 // ─── SVG Thumbnail (unchanged) ────────────────────────────────
 
 async function generateSvgThumbnail(
+  filePath: string,
+  outputFile: string
+): Promise<string> {
+  // SVGs don't need conversion — copy directly as the thumbnail
+  const outputBase = outputFile.replace(/\.(jpg|jpeg|png)$/i, '');
+
+  const svgOutputFile = `${outputBase}.svg`;
+
+  await fs.promises.copyFile(filePath, svgOutputFile);
+  return svgOutputFile;
+}
+
+async function generateSvgThumbnailLegacy(
   filePath: string,
   outputFile: string
 ): Promise<string> {

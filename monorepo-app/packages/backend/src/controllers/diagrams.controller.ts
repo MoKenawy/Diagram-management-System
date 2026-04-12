@@ -17,6 +17,7 @@ import type {
 import { AccessLevel } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { STORAGE_BASE_PATH } from '../config';
+import path from 'path';
 // ─── Response Types ──────────────────────────────────────────────
 
 interface ErrorResponseBody {
@@ -392,7 +393,6 @@ export async function downloadVersionFile(
     next(err);
   }
 }
-
 export async function getVersionThumbnail(
   req: Request,
   res: Response,
@@ -407,19 +407,16 @@ export async function getVersionThumbnail(
       sendError(res, 404, 'NOT_FOUND', 'Version not found');
       return;
     }
-    
-    let localThumbnailPath : PathLike = version.thumbnailPath ? version.thumbnailPath.toString() : '';
-
-    if ( process.env.NODE_ENV === 'development' && version.thumbnailPath) {
-       localThumbnailPath = version.thumbnailPath.toString().replace('/app', STORAGE_BASE_PATH.toString());
-       localThumbnailPath = localThumbnailPath as PathLike;
-    }
-
-
 
     if (!version.thumbnailPath) {
       sendError(res, 404, 'THUMBNAIL_NOT_FOUND', 'No thumbnail available for this version');
       return;
+    }
+
+    let localThumbnailPath: string = version.thumbnailPath.toString();
+
+    if (process.env.NODE_ENV === 'development') {
+      localThumbnailPath = localThumbnailPath.replace('/app', STORAGE_BASE_PATH.toString());
     }
 
     if (!fs.existsSync(localThumbnailPath)) {
@@ -427,10 +424,25 @@ export async function getVersionThumbnail(
       return;
     }
 
+    // Derive MIME from the actual thumbnail extension, not the original file format
+    const THUMBNAIL_MIME: Record<string, string> = {
+      '.svg':  'image/svg+xml',
+      '.jpg':  'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png':  'image/png',
+    };
+
+    const thumbExt = path.extname(localThumbnailPath).toLowerCase();
+    const mimeType = THUMBNAIL_MIME[thumbExt] ?? 'application/octet-stream';
+     logger.info(
+      { versionId, thumbnailPath: localThumbnailPath, mimeType , thumbnailExt: thumbExt},
+      'Serving thumbnail'
+    );
+
     const stat: fs.Stats = fs.statSync(localThumbnailPath);
 
     res.writeHead(200, {
-      'Content-Type': 'image/jpeg',
+      'Content-Type': mimeType,
       'Content-Length': stat.size,
       'Cache-Control': 'public, max-age=86400',
     });
