@@ -23,10 +23,19 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const swaggerDocument = YAML.load(path.join(__dirname, '../swagger.yaml')); 
 // Note: If running via ts-node from root, use './swagger.yaml'
 
+
+
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:80',
+  credentials: true  
+};
+
+
+
 app.use(helmet({
     contentSecurityPolicy: false, // Sometimes needed to allow Swagger UI to load correctly
 }));
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

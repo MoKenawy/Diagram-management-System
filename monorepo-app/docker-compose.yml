@@ -22,6 +22,9 @@ services:
       test: ["CMD-SHELL", "redis-cli ping"]
       interval: 5s
       retries: 5
+    ports:
+      - "6379:6379"
+      
 
   backend:
     build: 
