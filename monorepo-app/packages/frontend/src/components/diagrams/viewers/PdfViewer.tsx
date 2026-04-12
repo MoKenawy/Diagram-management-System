@@ -21,6 +21,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { privateApi as api } from '@/api/axiosClient';
 import { PDF_VIEWER_ZOOM_STEP, PDF_VIEWER_MIN_ZOOM, PDF_VIEWER_MAX_ZOOM} from '@/config/api';
 import { getDownloadUrl } from '@/utils/diagramFormatUtils';
+import { logger } from '@sentry/react';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -65,8 +66,10 @@ export const PdfViewer = ({ diagramId, versionId }: PdfViewerProps) => {
       setTotalPages(doc.numPages);
       setCurrentPage(1);
       setPageInput('1');
-    } catch {
+    } catch(err) {
       setError(true);
+      logger.error(`error loading PDF for diagram ${diagramId} version ${versionId}`, { error: err });
+      logger.error('Failed to load PDF', { diagramId, versionId });
     } finally {
       setIsLoading(false);
     }
