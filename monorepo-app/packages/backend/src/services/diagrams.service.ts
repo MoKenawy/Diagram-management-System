@@ -156,22 +156,22 @@ export async function listDiagrams(
   }
 
 
-if (uploadedFrom || uploadedTo) {
-  const dateFilter: Prisma.DateTimeFilter = {};
+  if (uploadedFrom || uploadedTo) {
+    const dateFilter: Prisma.DateTimeFilter = {};
 
-  if (uploadedFrom) {
-  dateFilter.gte = parseDate(uploadedFrom);
+    if (uploadedFrom) {
+      dateFilter.gte = parseDate(uploadedFrom);
 
+    }
+
+    if (uploadedTo) {
+      const toDate = parseDate(uploadedTo);
+      toDate.setDate(toDate.getDate() + 1);
+      dateFilter.lt = toDate;
+    }
+
+    where.createdAt = dateFilter;
   }
-  
-  if (uploadedTo) {
-    const toDate = parseDate(uploadedTo);
-    toDate.setDate(toDate.getDate() + 1);
-    dateFilter.lt = toDate; 
-  }
-
-  where.createdAt = dateFilter;
-}
 
 
   const [diagrams, total] = await Promise.all([
@@ -409,7 +409,7 @@ export async function getUserDiagramAccess(userId: string, diagramId: string[]) 
 
 
 }
-          
+
 
 
 export async function getAccessRules(diagramId: string) {
@@ -516,4 +516,15 @@ export async function diagramExists(id: string): Promise<boolean> {
     select: { id: true },
   });
   return !!d;
+}
+
+export async function targetExists(targetType: string, targetId: string): Promise<boolean> {
+  if (targetType === 'USER') {
+    const user = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+    return !!user;
+  } else if (targetType === 'DEPARTMENT') {
+    const dept = await prisma.department.findUnique({ where: { id: targetId }, select: { id: true } });
+    return !!dept;
+  }
+  return false;
 }

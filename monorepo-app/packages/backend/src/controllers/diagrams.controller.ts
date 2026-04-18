@@ -492,24 +492,31 @@ export async function createAccessRule(
       sendError(res, 404, 'NOT_FOUND', 'Diagram not found');
       return;
     }
-    // checkDuplicateAccessRule returns the first record 
-    // const duplicate = await diagramsService.checkDuplicateAccessRule(
-    //   id,
-    //   targetType,
-    //   targetId,
-    //   policy,
-    //   accessLevel
-    // );
 
-    // if (duplicate) {
-    //   sendError(
-    //     res,
-    //     409,
-    //     'DUPLICATE_RULE',
-    //     'An identical access rule already exists for this target and policy'
-    //   );
-    //   return;
-    // }
+    const tExists = await diagramsService.targetExists(targetType, targetId);
+    if (!tExists) {
+      sendError(res, 404, 'NOT_FOUND', 'Target user or department does not exist');
+      return;
+    }
+
+    // checkDuplicateAccessRule returns the first record 
+    const duplicate = await diagramsService.checkDuplicateAccessRule(
+      id,
+      targetType,
+      targetId,
+      policy,
+      accessLevel
+    );
+
+    if (duplicate) {
+      sendError(
+        res,
+        409,
+        'DUPLICATE_RULE',
+        'An identical access rule already exists for this target and policy'
+      );
+      return;
+    }
 
     const rule = await diagramsService.createAccessRule({
       diagramId: id,
