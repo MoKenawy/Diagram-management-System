@@ -105,13 +105,15 @@ process.on('uncaughtException', (err) => {
 });
 
 // ─── Start ───────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  logger.info(`Backend running on http://localhost:${PORT}`);
-  logger.info(`Swagger docs at http://localhost:${PORT}/api/docs`);
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    logger.info(`Backend running on http://localhost:${PORT}`);
+    logger.info(`Swagger docs at http://localhost:${PORT}/api/docs`);
 
-  if (process.env.DISABLE_WORKERS !== 'true') {
-    startAllWorkers();
-  }
-});
+    if (process.env.DISABLE_WORKERS !== 'true') {
+      startAllWorkers();
+    }
+  });
+}
 
 export default app;
