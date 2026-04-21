@@ -1,5 +1,4 @@
 // src/components/login/LoginForm.tsx
-import { Stack } from '@mui/material';
 import type { UseFormReturn } from 'react-hook-form';
 import type { LoginFormValues } from '@/validations/authValidation';
 
@@ -35,10 +34,10 @@ export const LoginForm = ({
   } = form;
 
   return (
-    <form action={submitAction}>
-      <Stack spacing={2.5}>
-        {error && <LoginErrorAlert error={error} onClose={onClearError} />}
+    <>
+      {error && <LoginErrorAlert error={error} onClose={onClearError} />}
 
+      <form action={submitAction} className="space-y-6">
         <UsernameField
           registration={register('username')}
           error={errors.username}
@@ -53,11 +52,12 @@ export const LoginForm = ({
           onToggleVisibility={onTogglePassword}
         />
 
-        <SubmitButton isLoading={isPending} />
-
         <ErrorButton />
-        <LoginFooter />
-      </Stack>
-    </form>
+
+        <SubmitButton isLoading={isPending} />
+      </form>
+
+      <LoginFooter />
+    </>
   );
 };
