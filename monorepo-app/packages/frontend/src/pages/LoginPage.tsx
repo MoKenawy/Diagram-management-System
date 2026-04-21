@@ -2,7 +2,11 @@
 import { useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useLoginForm } from '@/hooks/useLoginForm';
-import { LoginCard, LoginHeader, LoginForm } from '@/components/login';
+import {
+  LoginCard,
+  LoginHeader,
+  LoginForm,
+} from '@/components/login';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -23,9 +27,6 @@ const LoginPage = () => {
     }
   }, [actionState.success, navigate]);
 
-  // Resolve the displayed error: action state error takes priority
-  const displayError = actionState.error;
-
   return (
     <LoginCard>
       <LoginHeader />
@@ -33,7 +34,7 @@ const LoginPage = () => {
         form={form}
         showPassword={showPassword}
         isPending={isPending}
-        error={displayError}
+        error={actionState.error}
         submitAction={submitAction}
         onTogglePassword={togglePasswordVisibility}
         onClearError={clearError}

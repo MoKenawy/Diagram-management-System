@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { setupInterceptors } from '@/api/interceptors';
 import { initSentry } from '@/monitoring/sentry';
 import * as Sentry from '@sentry/react';
+import './index.css';
 
 
 initSentry();

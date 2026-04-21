@@ -1,13 +1,7 @@
 // src/components/login/LoginHeader.tsx
-import { Box, Typography } from '@mui/material';
-
 export const LoginHeader = () => (
-  <Box textAlign="center" mb={4}>
-    <Typography variant="h4" fontWeight={600} sx={{ color: '#1b5e20' }}>
-      🌿 Diagram System
-    </Typography>
-    <Typography variant="body2" color="text.secondary">
-      Organize, manage, and visualize your diagrams
-    </Typography>
-  </Box>
+  <div className="mb-10 space-y-2">
+    <h2 className="font-headline font-bold text-3xl text-on-surface tracking-tight">تسجيل الدخول للنظام</h2>
+    <p className="font-label text-sm text-on-surface-variant">أدخل بيانات الاعتماد الخاصة بك للوصول إلى الأرشيف.</p>
+  </div>
 );
