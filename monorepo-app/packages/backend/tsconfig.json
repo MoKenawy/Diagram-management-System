@@ -21,6 +21,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "build"
+    "build",
+    "src/__tests__/**/*"
   ]
 }
