@@ -1,68 +1,56 @@
-// src/components/diagrams/ArchivePagination.tsx
-import {
-  Box,
-  Typography,
-  Pagination as MuiPagination,
-  Select,
-  MenuItem,
-  FormControl,
-} from '@mui/material';
 import type { PaginationMeta } from '@/types/index';
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
 interface ArchivePaginationProps {
   pagination: PaginationMeta;
   onPageChange: (page: number) => void;
-  onLimitChange: (limit: number) => void;
+  onLimitChange?: (limit: number) => void;
 }
 
 export const ArchivePagination = ({
   pagination,
   onPageChange,
-  onLimitChange,
+  // onLimitChange,
 }: ArchivePaginationProps) => {
-  const { page, limit, total, totalPages } = pagination;
-  const from = (page - 1) * limit + 1;
-  const to = Math.min(page * limit, total);
+  const { page, totalPages } = pagination;
+
+  // Simple logic to show a few pages around the current page
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter(p => p === 1 || p === totalPages || Math.abs(page - p) <= 1);
 
   return (
-    <Box
-      display="flex"
-      justifyContent="space-between"
-      alignItems="center"
-      flexWrap="wrap"
-      gap={2}
-      mt={3}
-    >
-      <Typography variant="body2" color="text.secondary">
-        يتم عرض {from}–{to} من {total} لوحة
-      </Typography>
+    <div className="mt-12 flex justify-center items-center gap-2">
+      <button
+        onClick={() => onPageChange(page - 1)}
+        disabled={page === 1}
+        className="p-2 rounded-md text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-50"
+      >
+        <span className="material-symbols-outlined text-sm">chevron_right</span>
+      </button>
 
-      <Box display="flex" alignItems="center" gap={2}>
-        <FormControl size="small">
-          <Select
-            value={limit}
-            onChange={(e) => onLimitChange(Number(e.target.value))}
-            sx={{ borderRadius: 2, minWidth: 80 }}
+      {pages.map((p, i) => (
+        <div key={p} className="flex items-center gap-2">
+          {i > 0 && p - pages[i - 1] > 1 && (
+            <span className="text-on-surface-variant text-sm">...</span>
+          )}
+          <button
+            onClick={() => onPageChange(p)}
+            className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors ${page === p
+              ? 'bg-primary text-on-primary shadow-sm'
+              : 'text-on-surface hover:bg-surface-container-high'
+              }`}
           >
-            {PAGE_SIZE_OPTIONS.map((size) => (
-              <MenuItem key={size} value={size}>
-                {size}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            {p}
+          </button>
+        </div>
+      ))}
 
-        <MuiPagination
-          count={totalPages}
-          page={page}
-          onChange={(_, newPage) => onPageChange(newPage)}
-          shape="rounded"
-          color="primary"
-          size="small"
-        />
-      </Box>
-    </Box>
+      <button
+        onClick={() => onPageChange(page + 1)}
+        disabled={page === totalPages}
+        className="p-2 rounded-md text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-50"
+      >
+        <span className="material-symbols-outlined text-sm">chevron_left</span>
+      </button>
+    </div>
   );
 };

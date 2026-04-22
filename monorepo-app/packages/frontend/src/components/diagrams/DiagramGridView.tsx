@@ -1,5 +1,3 @@
-// src/components/diagrams/DiagramGridView.tsx
-import { Grid } from '@mui/material';
 import { DiagramCard } from './DiagramCard';
 import { DiagramCardSkeleton } from './DiagramCardSkeleton';
 import type { DiagramSummaryResponse, Role } from '@/types/index';
@@ -31,20 +29,20 @@ export const DiagramGridView = ({
 }: DiagramGridViewProps) => {
   if (isLoading) {
     return (
-      <Grid container spacing={2}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {Array.from({ length: SKELETON_COUNT }, (_, i) => (
-          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={i}>
+          <div key={i}>
             <DiagramCardSkeleton />
-          </Grid>
+          </div>
         ))}
-      </Grid>
+      </div>
     );
   }
 
   return (
-    <Grid container spacing={2}>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {diagrams.map((diagram) => (
-        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={diagram.id}>
+        <div key={diagram.id}>
           <DiagramCard
             diagram={diagram}
             userRole={userRole}
@@ -55,8 +53,8 @@ export const DiagramGridView = ({
             onUploadRevision={onUploadRevision}
             onDeactivate={onDeactivate}
           />
-        </Grid>
+        </div>
       ))}
-    </Grid>
+    </div>
   );
 };
