@@ -9,12 +9,12 @@ import path from 'path';
 import { logger, requestLogger } from './utils/logger';
 import diagramsRoutes from './routes/diagrams.routes';
 
-
 import departmentsRoutes from './routes/departments.routes';
 import usersRoutes from './routes/users.routes';
 import reportsRoutes from './routes/reports.routes';
 import adminRoutes from './routes/admin.routes';
 import { startAllWorkers } from './workers';
+
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);

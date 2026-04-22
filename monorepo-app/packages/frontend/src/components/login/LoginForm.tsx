@@ -8,7 +8,6 @@ import { UsernameField } from './UsernameField';
 import { PasswordField } from './PasswordField';
 import { SubmitButton } from './SubmitButton';
 import { LoginFooter } from './LoginFooter';
-import { ErrorButton } from '../shared/ErrorButton';
 
 interface LoginFormProps {
   form: UseFormReturn<LoginFormValues>;
@@ -55,7 +54,6 @@ export const LoginForm = ({
 
         <SubmitButton isLoading={isPending} />
 
-        <ErrorButton />
         <LoginFooter />
       </Stack>
     </form>
