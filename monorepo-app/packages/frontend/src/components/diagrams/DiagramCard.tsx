@@ -1,20 +1,7 @@
-// src/components/diagrams/DiagramCard.tsx
-import { useState } from 'react';
-import {
-  Card,
-  CardContent,
-  CardMedia,
-  Typography,
-  Box,
-  Chip,
-  IconButton,
-  Fade,
-} from '@mui/material';
-import { Download, OpenInNew } from '@mui/icons-material';
+import { useState, useCallback } from 'react';
 import type { DiagramSummaryResponse, Role } from '@/types/index';
-import { formatTimeAgo, formatStorageSize } from '@/utils/formatters';
+import { formatStorageSize } from '@/utils/formatters';
 import { useThumbnailUrl } from '@/hooks/useThumbnailUrl';
-import { FormatBadge } from './FormatBadge';
 import { DiagramCardMenu } from './DiagramCardMenu';
 
 interface DiagramCardProps {
@@ -30,6 +17,13 @@ interface DiagramCardProps {
 
 const PRIVILEGED_ROLES: Role[] = ['DC' as Role, 'ADMIN' as Role];
 
+const getFormatBadgeColor = (format?: string) => {
+  const f = format?.toLowerCase();
+  if (f === 'pdf') return 'bg-secondary text-on-secondary';
+  if (f === 'rvt') return 'bg-primary text-on-primary';
+  return 'bg-tertiary text-on-tertiary'; // DWG and others
+};
+
 export const DiagramCard = ({
   diagram,
   userRole,
@@ -40,177 +34,96 @@ export const DiagramCard = ({
   onUploadRevision,
   onDeactivate,
 }: DiagramCardProps) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [_, setIsHovered] = useState(false);
 
   const currentVersion = diagram.currentVersion;
   const thumbnailUrl = useThumbnailUrl(diagram.id, currentVersion?.id);
   const canManage = PRIVILEGED_ROLES.includes(userRole);
 
+  const handleDownload = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentVersion) {
+      onDownload(diagram.id, currentVersion.id);
+    }
+  }, [currentVersion, diagram.id, onDownload]);
+
   return (
-    <Card
-      sx={{
-        borderRadius: 3,
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        position: 'relative',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: isHovered
-          ? '0 8px 24px rgba(0,0,0,0.14)'
-          : '0 1px 4px rgba(0,0,0,0.06)',
-      }}
+    <div
+      onClick={() => onClick(diagram.id)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onClick(diagram.id)}
+      className="bg-surface-container-lowest rounded-xl overflow-hidden group hover:bg-surface-container-highest transition-colors duration-300 flex flex-col h-full border border-surface-container-low cursor-pointer"
     >
-      {/* Thumbnail */}
-      <Box sx={{ position: 'relative', height: 180, overflow: 'hidden' }}>
+      <div className="aspect-[4/3] bg-surface-container relative overflow-hidden p-2">
         {thumbnailUrl ? (
-          <CardMedia
-            component="img"
-            height={180}
-            image={thumbnailUrl}
+          <img
+            src={thumbnailUrl}
             alt={diagram.title}
-            sx={{ objectFit: 'cover' }}
+            className="w-full h-full object-cover rounded-lg opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 mix-blend-multiply filter grayscale contrast-125"
           />
         ) : (
-          <Box
-            height={180}
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            sx={{ backgroundColor: '#f0f0f0' }}
-          >
-            <Typography variant="h3" sx={{ opacity: 0.3 }}>
-              📄
-            </Typography>
-          </Box>
+          <div className="w-full h-full object-cover rounded-lg bg-surface-variant/50 flex items-center justify-center opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500">
+            <span className="material-symbols-outlined text-4xl text-on-surface-variant/30">description</span>
+          </div>
         )}
-
-        {/* Format badge — top left */}
-        {currentVersion && (
-          <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-            <FormatBadge format={currentVersion.fileFormat} />
-          </Box>
+        
+        {currentVersion?.revisionLabel && (
+          <div className="absolute top-4 right-4 bg-surface/80 backdrop-blur-md px-2 py-1 rounded text-[0.65rem] font-bold tracking-widest uppercase text-on-surface shadow-sm">
+            {currentVersion.revisionLabel}
+          </div>
         )}
+        
+        {currentVersion?.fileFormat && (
+          <div className={`absolute top-4 left-4 ${getFormatBadgeColor(currentVersion.fileFormat)} px-2 py-1 rounded text-[0.65rem] font-bold tracking-widest uppercase shadow-sm`}>
+            {currentVersion.fileFormat}
+          </div>
+        )}
+      </div>
 
-        {/* Hover overlay with actions */}
-        <Fade in={isHovered}>
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: 'rgba(0,0,0,0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 1,
-            }}
-          >
-            {currentVersion && (
-              <IconButton
-                size="small"
-                sx={{
-                  backgroundColor: 'white',
-                  '&:hover': { backgroundColor: '#f5f5f5' },
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDownload(diagram.id, currentVersion.id);
-                }}
-              >
-                <Download fontSize="small" />
-              </IconButton>
-            )}
-            <IconButton
-              size="small"
-              sx={{
-                backgroundColor: 'white',
-                '&:hover': { backgroundColor: '#f5f5f5' },
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onClick(diagram.id);
-              }}
-            >
-              <OpenInNew fontSize="small" />
-            </IconButton>
-          </Box>
-        </Fade>
-      </Box>
-
-      {/* Content */}
-      <CardContent
-        sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-      >
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="flex-start"
-          mb={0.5}
-        >
-          <Typography
-            variant="subtitle2"
-            fontWeight={600}
-            sx={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              lineHeight: 1.4,
-              flexGrow: 1,
-            }}
-          >
+      <div className="p-5 flex flex-col flex-1">
+        <div className="flex justify-between items-start mb-1 gap-2">
+          <h3 className="text-base font-semibold text-on-surface line-clamp-2 leading-tight flex-1">
             {diagram.title}
-          </Typography>
-
+          </h3>
           {canManage && (
-            <DiagramCardMenu
-              onEditMetadata={() => onEditMetadata?.(diagram.id)}
-              onManageAccess={() => onManageAccess?.(diagram.id)}
-              onUploadRevision={() => onUploadRevision?.(diagram.id)}
-              onDeactivate={() => onDeactivate?.(diagram.id)}
-            />
+            <div onClick={e => e.stopPropagation()}>
+              <DiagramCardMenu
+                onEditMetadata={() => onEditMetadata?.(diagram.id)}
+                onManageAccess={() => onManageAccess?.(diagram.id)}
+                onUploadRevision={() => onUploadRevision?.(diagram.id)}
+                onDeactivate={() => onDeactivate?.(diagram.id)}
+              />
+            </div>
           )}
-        </Box>
-
-        {/* Revision label */}
-        {currentVersion && (
-          <Chip
-            label={currentVersion.revisionLabel}
-            size="small"
-            variant="outlined"
-            color="secondary"
-            sx={{
-              borderRadius: 2,
-              alignSelf: 'flex-start',
-              mb: 1,
-              fontSize: 11,
-            }}
-          />
-        )}
-
-        {/* Meta row */}
-        <Box
-          mt="auto"
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Typography variant="caption" color="text.secondary">
-            {currentVersion
-              ? formatTimeAgo(currentVersion.uploadedAt)
-              : '—'}
-          </Typography>
-          <Typography variant="caption" color="text.disabled">
-            {currentVersion
-              ? formatStorageSize(currentVersion.fileSizeBytes)
-              : '—'}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+        </div>
+        
+        <p className="text-xs text-on-surface-variant mb-4 font-mono" dir="ltr">
+          ID: {diagram.id.substring(0, 8).toUpperCase()}...
+        </p>
+        
+        <div className="mt-auto space-y-3">
+          <div className="flex justify-between items-center text-xs text-on-surface-variant border-t border-outline-variant/20 pt-3">
+            <span>{currentVersion ? `تم التعديل: ${new Date(currentVersion.uploadedAt).toLocaleDateString('ar-EG')}` : '—'}</span>
+            <span dir="ltr">{currentVersion ? formatStorageSize(currentVersion.fileSizeBytes) : '—'}</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onClick(diagram.id); }}
+              className="flex-1 py-2 text-center text-sm font-medium border border-outline-variant/30 text-on-surface rounded-md hover:bg-surface-container-low transition-colors"
+            >
+              عرض
+            </button>
+            {currentVersion && (
+              <button 
+                onClick={handleDownload}
+                className="flex-[0.6] py-2 text-center text-sm font-medium bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-md shadow-sm hover:opacity-90 transition-opacity active:scale-[0.98] flex items-center justify-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[16px]">download</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };

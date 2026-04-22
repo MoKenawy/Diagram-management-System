@@ -1,32 +1,31 @@
-// src/components/diagrams/ViewToggle.tsx
-import { ToggleButton, ToggleButtonGroup } from '@mui/material';
-import { GridView, TableRows } from '@mui/icons-material';
-
 interface ViewToggleProps {
   view: 'grid' | 'table';
   onChange: (view: 'grid' | 'table') => void;
 }
 
 export const ViewToggle = ({ view, onChange }: ViewToggleProps) => (
-  <ToggleButtonGroup
-    value={view}
-    exclusive
-    onChange={(_, newView) => {
-      if (newView) onChange(newView);
-    }}
-    size="small"
-    sx={{
-      '& .MuiToggleButton-root': {
-        borderRadius: 2,
-        px: 1.5,
-      },
-    }}
-  >
-    <ToggleButton value="grid" aria-label="grid view">
-      <GridView fontSize="small" />
-    </ToggleButton>
-    <ToggleButton value="table" aria-label="table view">
-      <TableRows fontSize="small" />
-    </ToggleButton>
-  </ToggleButtonGroup>
+  <div className="flex items-center gap-3 w-full md:w-auto">
+    <div className="flex items-center bg-surface-container-high rounded-full p-1 w-full md:w-auto">
+      <button 
+        onClick={() => onChange('grid')} 
+        className={`flex-1 md:flex-none px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+          view === 'grid' 
+            ? 'bg-surface-container-lowest text-primary shadow-sm' 
+            : 'text-on-surface-variant hover:text-on-surface font-medium'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[18px]">grid_view</span> شبكة
+      </button>
+      <button 
+        onClick={() => onChange('table')} 
+        className={`flex-1 md:flex-none px-4 py-2 rounded-full text-sm flex items-center justify-center gap-2 transition-colors ${
+          view === 'table' 
+            ? 'bg-surface-container-lowest text-primary shadow-sm font-semibold' 
+            : 'text-on-surface-variant hover:text-on-surface font-medium'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[18px]">table_rows</span> قائمة
+      </button>
+    </div>
+  </div>
 );
