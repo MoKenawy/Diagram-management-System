@@ -133,7 +133,7 @@ export const AccessRuleForm = ({ diagramId, onSuccess, onCancel }: AccessRuleFor
         size="small"
         fullWidth
       >
-        <ToggleButton value="ALLOW" sx={{ borderRadius: 2, textTransform: 'none', color: '#2e7d32' }}>
+        <ToggleButton value="ALLOW" sx={{ borderRadius: 2, textTransform: 'none', color: '#0059bb' }}>
           سماح
         </ToggleButton>
         <ToggleButton value="DENY" sx={{ borderRadius: 2, textTransform: 'none', color: '#d32f2f' }}>

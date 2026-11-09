@@ -10,7 +10,7 @@ interface FormatConfig {
 const FORMAT_CONFIG: Record<FileFormat, FormatConfig> = {
   PDF: { label: 'PDF', color: '#d32f2f', bgColor: '#ffebee' },
   DWG: { label: 'DWG', color: '#1565c0', bgColor: '#e3f2fd' },
-  SVG: { label: 'SVG', color: '#2e7d32', bgColor: '#e8f5e9' },
+  SVG: { label: 'SVG', color: '#0059bb', bgColor: '#f9f9ff' },
   PNG: { label: 'PNG', color: '#616161', bgColor: '#f5f5f5' },
   JPEG: { label: 'JPEG', color: '#616161', bgColor: '#f5f5f5' },
 };

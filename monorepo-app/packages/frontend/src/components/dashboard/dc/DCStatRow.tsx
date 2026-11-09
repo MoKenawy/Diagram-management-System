@@ -26,7 +26,7 @@ export const DCStatRow = ({ summary, isLoading }: DCStatRowProps) => (
         title="إجمالي اللوحات"
         value={formatNumber(summary?.totalActiveDiagrams ?? 0)}
         icon={<GridView />}
-        color="#2e7d32"
+        color="#0059bb"
         isLoading={isLoading}
       />
     </Grid>

@@ -33,7 +33,7 @@ export const DCDashboard = () => {
               borderRadius: 3,
               textTransform: 'none',
               fontWeight: 600,
-              background: 'linear-gradient(90deg, #2e7d32, #66bb6a)',
+              background: 'linear-gradient(90deg, #0059bb, #2455bf)',
             }}
           >
             + رفع لوحة جديدة

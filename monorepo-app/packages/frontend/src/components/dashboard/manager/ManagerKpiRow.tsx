@@ -39,7 +39,7 @@ export const ManagerKpiRow = ({ summary, isLoading }: ManagerKpiRowProps) => {
       title: 'المساحة المستخدمة',
       value: formatStorageSize(summary?.storageUsedBytes ?? '0'),
       icon: <Storage />,
-      color: '#2e7d32',
+      color: '#0059bb',
     },
   ] as const;
 

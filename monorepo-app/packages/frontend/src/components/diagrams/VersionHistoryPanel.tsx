@@ -66,8 +66,8 @@ export const VersionHistoryPanel = ({
                 flexDirection: 'column',
                 alignItems: 'flex-start',
                 p: 2,
-                backgroundColor: isSelected ? '#e8f5e9' : 'transparent',
-                borderRight: isSelected ? '3px solid #2e7d32' : '3px solid transparent',
+                backgroundColor: isSelected ? '#f9f9ff' : 'transparent',
+                borderRight: isSelected ? '3px solid #0059bb' : '3px solid transparent',
                 transition: 'all 0.15s',
               }}
             >

@@ -10,7 +10,7 @@ interface KpiCardProps {
   isLoading?: boolean;
 }
 
-export const KpiCard = ({ title, value, icon, color = '#2e7d32', isLoading = false }: KpiCardProps) => (
+export const KpiCard = ({ title, value, icon, color = '#0059bb', isLoading = false }: KpiCardProps) => (
   <Card sx={{ borderRadius: 3, height: '100%' }}>
     <CardContent sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="flex-start">

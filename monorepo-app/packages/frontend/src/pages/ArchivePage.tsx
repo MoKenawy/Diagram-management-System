@@ -149,7 +149,7 @@ const ArchivePage = () => {
               {isDC && (
                 <button
                   onClick={() => navigate({ to: '/diagrams/create' })}
-                  className="w-full md:w-auto px-6 py-2 rounded-full bg-gradient-to-r from-primary to-[#2e7d32] text-on-primary shadow-md hover:shadow-lg font-medium flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                  className="w-full md:w-auto px-6 py-2 rounded-full bg-gradient-to-r from-primary to-[#0059bb] text-on-primary shadow-md hover:shadow-lg font-medium flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <span className="material-symbols-outlined text-[20px]">upload</span>
                   رفع مخطط

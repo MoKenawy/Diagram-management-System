@@ -46,9 +46,9 @@ export const UploadsChart = ({ data, isLoading }: UploadsChartProps) => (
             <Line
               type="monotone"
               dataKey="count"
-              stroke="#2e7d32"
+              stroke="#0059bb"
               strokeWidth={2}
-              dot={{ r: 4, fill: '#2e7d32' }}
+              dot={{ r: 4, fill: '#0059bb' }}
               name="عدد الرفعات"
             />
           </LineChart>

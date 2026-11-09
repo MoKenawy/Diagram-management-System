@@ -10,8 +10,8 @@ export const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#2e7d32',
-      light: '#66bb6a',
+      main: '#0059bb',
+      light: '#2455bf',
       dark: '#1b5e20',
       contrastText: '#ffffff',
     },
@@ -19,7 +19,7 @@ export const theme = createTheme({
       main: '#a5d6a7',
     },
     background: {
-      default: '#e8f5e9',
+      default: '#f9f9ff',
       paper: 'rgba(255,255,255,0.9)',
     },
     text: {
@@ -27,7 +27,7 @@ export const theme = createTheme({
       secondary: '#4e6e58',
     },
     success: {
-      main: '#2e7d32',
+      main: '#0059bb',
     },
   },
 
@@ -66,7 +66,7 @@ export const theme = createTheme({
           paddingBottom: 10,
         },
         containedPrimary: {
-          background: 'linear-gradient(90deg, #2e7d32, #66bb6a)',
+          background: 'linear-gradient(90deg, #0059bb, #2455bf)',
           boxShadow: '0 4px 14px rgba(46,125,50,0.3)',
           '&:hover': {
             background: 'linear-gradient(90deg, #1b5e20, #4caf50)',
@@ -88,7 +88,7 @@ export const theme = createTheme({
     MuiLink: {
       styleOverrides: {
         root: {
-          color: '#2e7d32',
+          color: '#0059bb',
           fontWeight: 500,
         },
       },
