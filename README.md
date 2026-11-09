@@ -2,8 +2,10 @@
 
 # Diagram Management System
 
-**نظام إدارة المخططات الهندسية** — a bilingual (AR/EN, full RTL) engineering drawing archive with
-role-based access control, immutable version history, and a complete audit trail.
+<p dir="rtl" lang="ar"><b>نظام إدارة المخططات الهندسية</b></p>
+
+A bilingual (Arabic / English, full RTL) engineering drawing archive with role-based access
+control, immutable version history, and a complete audit trail.
 
 <img src="docs/screenshots/01-login.webp" alt="Login screen" width="100%">
 
