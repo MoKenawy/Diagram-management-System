@@ -40,14 +40,17 @@ async function main() {
   }
 
   // 3. Hash default password using util (Cost factor 12)
-  const defaultPasswordHash = await hashPassword('Admin@123');
+  // Override with SEED_ADMIN_PASSWORD / SEED_ADMIN_USERNAME for non-local installs.
+  const adminUsername = process.env.SEED_ADMIN_USERNAME ?? 'admin';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@123';
+  const defaultPasswordHash = await hashPassword(adminPassword);
 
-  // 4. Seed Admin User
+  // 4. Seed Admin User (idempotent: an existing admin keeps its current password)
   await prisma.user.upsert({
-    where: { username: 'admin' },
+    where: { username: adminUsername },
     update: {},
     create: {
-      username: 'admin',
+      username: adminUsername,
       fullName: 'System Administrator',
       email: 'admin@system.local',
       passwordHash: defaultPasswordHash,
@@ -78,6 +81,10 @@ async function main() {
   }
 
   console.log('Seeding completed successfully!');
+  console.log('------------------------------------------------------------');
+  console.log(`  Default admin  ->  username: ${adminUsername}  password: ${adminPassword}`);
+  console.log('  Change this password immediately on any shared deployment.');
+  console.log('------------------------------------------------------------');
 }
 
 main()
